@@ -1613,5 +1613,12 @@ public class InterfaceWrapperHelper
 	{
 		return POWrapper.checkZeroIdValue(columnName, value);
 	}
+	
+	/** @return <code>id</code> if valid, -1 otherwise */
+	public static final int checkZeroIdValue(final String columnName, final int id)
+	{
+		return POWrapper.checkZeroIdValue(columnName, id);
+	}
+
 
 }

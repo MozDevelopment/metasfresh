@@ -968,6 +968,12 @@ public final class POInfo implements Serializable
 		return poInfoColumn.getReferencedTableNameOrNull();
 	}
 
+	public String getReferencedTableNameOrNull(final int columnIndex)
+	{
+		final POInfoColumn poInfoColumn = m_columns[columnIndex];
+		return poInfoColumn.getReferencedTableNameOrNull();
+	}
+
 	/**
 	 * Get Lookup
 	 *

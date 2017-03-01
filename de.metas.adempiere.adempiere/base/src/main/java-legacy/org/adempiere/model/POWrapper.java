@@ -618,6 +618,29 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 		return id;
 	}
 
+	/** @return <code>id</code> if valid, -1 otherwise */
+	public static final int checkZeroIdValue(final String columnName, final int id)
+	{
+		if (!columnName.endsWith("_ID"))
+		{
+			return -1;
+		}
+
+		if (id > 0)
+		{
+			return id;
+		}
+
+		final int firstValidId = getFirstValidIdByColumnName(columnName);
+		if (id < firstValidId)
+		{
+			return -1;
+		}
+
+		return id;
+	}
+
+
 	/**
 	 * Returns 0 if there is (or could be) a valid record with ID=0), like for example <code>AD_User_ID</code>.
 	 *

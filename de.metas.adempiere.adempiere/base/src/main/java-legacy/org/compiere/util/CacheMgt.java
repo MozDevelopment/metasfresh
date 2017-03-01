@@ -16,7 +16,9 @@
  *****************************************************************************/
 package org.compiere.util;
 
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,6 +102,13 @@ public final class CacheMgt
 
 	/** Logger */
 	static final transient Logger log = LogManager.getLogger(CacheMgt.class);
+	
+	private final CompositeCacheMgtListener listeners = new CompositeCacheMgtListener();
+	
+	public final void addCacheMgtListener(final CacheMgtListener listener)
+	{
+		listeners.addListener(listener);
+	}
 
 	/**
 	 * Enable caches for the given table to be invalidated by remote events. Example: if a user somewhere else opens/closes a period, we can allow the system to invalidate the local cache to avoid it
@@ -339,6 +348,25 @@ public final class CacheMgt
 		final boolean broadcast = true;
 		return reset(tableName, recordId, broadcast);
 	}
+	
+	public void reset(final Collection<? extends ITableRecordReference> records)
+	{
+		if(records.isEmpty())
+		{
+			return;
+		}
+		
+		records.forEach(record -> {
+			// NPE guard
+			if(record == null)
+			{
+				log.warn("Skipping null record while doing cache reset. This might be a development problem.");
+				return;
+			}
+			
+			reset(record.getTableName(), record.getRecord_ID());
+		});
+	}
 
 	/**
 	 * Reset cache for TableName/Record_ID when given transaction is committed.
@@ -361,6 +389,25 @@ public final class CacheMgt
 
 		RecordsToResetOnTrxCommitCollector.getCreate(trx).addRecord(tableName, recordId);
 	}
+	
+	public void resetOnTrxCommit(final String trxName, List<TableRecordReference> records)
+	{
+		if(records.isEmpty())
+		{
+			return;
+		}
+		
+		final ITrxManager trxManager = Services.get(ITrxManager.class);
+		final ITrx trx = trxManager.get(trxName, OnTrxMissingPolicy.ReturnTrxNone);
+		if (trxManager.isNull(trx))
+		{
+			reset(records);
+			return;
+		}
+
+		RecordsToResetOnTrxCommitCollector.getCreate(trx).addRecords(records);
+	}
+
 
 	/**
 	 * Invalidate all cached entries for given TableName/Record_ID.
@@ -377,11 +424,11 @@ public final class CacheMgt
 			return reset();
 		}
 
+		int total = 0;
 		cacheInstancesLock.lock();
 		try
 		{
 			int counter = 0;
-			int total = 0;
 
 			//
 			// Invalidate local caches if we have at least one cache interface about our table
@@ -408,21 +455,25 @@ public final class CacheMgt
 			}
 			//
 			log.debug("Reset {}: {} cache interfaces checked ({} records invalidated)", tableName, counter, total);
-
-			//
-			// Broadcast cache invalidation.
-			// We do this, even if we don't have any cache interface registered locally, because there might be remotely.
-			if (broadcast)
-			{
-				RemoteCacheInvalidationHandler.instance.postEvent(tableName, recordId);
-			}
-
-			return total;
 		}
 		finally
 		{
 			cacheInstancesLock.unlock();
 		}
+		
+		//
+		// Broadcast cache invalidation.
+		// We do this, even if we don't have any cache interface registered locally, because there might be remotely.
+		if (broadcast)
+		{
+			RemoteCacheInvalidationHandler.instance.postEvent(tableName, recordId);
+		}
+		
+		//
+		// Fire local listeners
+		listeners.onReset(tableName, recordId);
+
+		return total;
 	}	// reset
 
 	/**
@@ -814,6 +865,18 @@ public final class CacheMgt
 			
 			log.debug("Scheduled cache invalidation on transaction commit: {}", record);
 		}
+		
+		public final void addRecords(final List<TableRecordReference> recordsToAdd)
+		{
+			if(recordsToAdd.isEmpty())
+			{
+				return;
+			}
+			
+			records.addAll(recordsToAdd);
+			
+			log.debug("Scheduled cache invalidation on transaction commit: {}", recordsToAdd);
+		}
 
 		/** Reset the cache for all enqueued records */
 		private void run()
@@ -824,11 +887,7 @@ public final class CacheMgt
 			}
 
 			final CacheMgt cacheMgt = CacheMgt.get();
-			for (final ITableRecordReference record : records)
-			{
-				cacheMgt.reset(record.getTableName(), record.getRecord_ID());
-			}
-
+			cacheMgt.reset(records);
 			records.clear();
 		}
 	}

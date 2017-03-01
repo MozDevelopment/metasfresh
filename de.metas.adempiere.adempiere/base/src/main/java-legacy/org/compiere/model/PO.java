@@ -50,6 +50,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.adempiere.ad.dao.cache.impl.TableRecordCacheLocal;
 import org.adempiere.ad.migration.logger.IMigrationLogger;
 import org.adempiere.ad.migration.model.X_AD_MigrationStep;
+import org.adempiere.ad.modelvalidator.ModelChangeType;
 import org.adempiere.ad.persistence.po.INoDataFoundHandler;
 import org.adempiere.ad.persistence.po.NoDataFoundHandlers;
 import org.adempiere.ad.security.TableAccessLevel;
@@ -72,6 +73,7 @@ import org.adempiere.model.InterfaceWrapperHelper;
 import org.adempiere.service.ISysConfigBL;
 import org.adempiere.util.Check;
 import org.adempiere.util.Services;
+import org.adempiere.util.lang.impl.TableRecordReference;
 import org.compiere.Adempiere;
 import org.compiere.util.CacheMgt;
 import org.compiere.util.DB;
@@ -89,6 +91,8 @@ import org.compiere.util.ValueNamePair;
 import org.slf4j.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+
+import com.google.common.collect.ImmutableList;
 
 import de.metas.document.documentNo.IDocumentNoBL;
 import de.metas.document.documentNo.IDocumentNoBuilder;
@@ -2988,12 +2992,17 @@ public abstract class PO
 
 		//
 		// Reset cache
-		if (!newRecord)
+//		if (!newRecord)
+//		{
+//			final int id = get_ID();
+//			CacheMgt.get().resetOnTrxCommit(get_TrxName(), p_info.getTableName(), id);
+//		}
 		{
-			final int id = get_ID();
-			CacheMgt.get().resetOnTrxCommit(get_TrxName(), p_info.getTableName(), id);
+			final List<TableRecordReference> cacheResetEvents = extractCacheResetEvents(newRecord ? ModelChangeType.AFTER_NEW : ModelChangeType.AFTER_CHANGE);
+			CacheMgt.get().resetOnTrxCommit(get_TrxName(), cacheResetEvents);
 		}
 
+		
 		//
 		// Deferred processing of this po (metas-ts 1076)
 		if (success)
@@ -4026,18 +4035,78 @@ public abstract class PO
 			fireModelChange(ModelValidator.TYPE_AFTER_DELETE); // metas: use fireModelChange method - 01512
 		}
 
-		// Reset
+		// Cache Reset
 		if (success)
 		{
-			int size = p_info.getColumnCount();
+			// Extract all records that we have to reset
+			final List<TableRecordReference> cacheResetEvents = extractCacheResetEvents(ModelChangeType.AFTER_DELETE);
+			
+			final int size = p_info.getColumnCount();
 			m_oldValues = new Object[size];
 			m_newValues = new Object[size];
 			m_valueLoaded = new boolean[size]; // metas
 			m_stale = false; // metas: 01537
-
-			CacheMgt.get().resetOnTrxCommit(trxName, p_info.getTableName(), m_idOld);
 			m_idOld = 0;
+			
+			CacheMgt.get().resetOnTrxCommit(trxName, cacheResetEvents);
 		}
+	}
+	
+	private final List<TableRecordReference> extractCacheResetEvents(final ModelChangeType changeType)
+	{
+		final ImmutableList.Builder<TableRecordReference> recordsToReset = ImmutableList.builder();
+		
+		if (p_info.hasKeyColumn())
+		{
+			if(changeType.isNew())
+			{
+				// don't reset cache for new record because it's pointless
+			}
+			else if(changeType.isChange())
+			{
+				recordsToReset.add(TableRecordReference.of(p_info.getTableName(), get_ID()));
+			}
+			else if(changeType.isDelete())
+			{
+				recordsToReset.add(TableRecordReference.of(p_info.getTableName(), get_IDOld()));
+			}
+		}
+
+		//
+		// Check the parent links
+		for (int columnIndex = 0, columnsCount = p_info.getColumnCount(); columnIndex < columnsCount; columnIndex++)
+		{
+			if (!p_info.isColumnParent(columnIndex))
+			{
+				continue;
+			}
+			
+			final String parentTableName = p_info.getReferencedTableNameOrNull(columnIndex);
+			if(parentTableName == null)
+			{
+				continue;
+			}
+			
+			final String columnName = p_info.getColumnName(columnIndex);
+			if (changeType.isChangeOrDelete())
+			{
+				final int parentOldRecordId = InterfaceWrapperHelper.checkZeroIdValue(columnName, get_ValueOldAsInt(columnIndex));
+				if(parentOldRecordId >= 0)
+				{
+					recordsToReset.add(TableRecordReference.of(parentTableName, parentOldRecordId));
+				}
+			}
+			if(changeType.isNewOrChange())
+			{
+				final int parentRecordId = InterfaceWrapperHelper.checkZeroIdValue(columnName, get_ValueAsInt(columnIndex));
+				if(parentRecordId >= 0)
+				{
+					recordsToReset.add(TableRecordReference.of(parentTableName, parentRecordId));
+				}
+			}
+		}
+		
+		return recordsToReset.build();
 	}
 
 	/**

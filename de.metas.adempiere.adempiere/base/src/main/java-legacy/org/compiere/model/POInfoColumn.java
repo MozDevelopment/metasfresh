@@ -249,7 +249,7 @@ public final class POInfoColumn implements Serializable
 	private final String sqlColumnForSelect;
 	
 	/** Cached {@link MLookupInfo} for {@link Env#WINDOW_None} (most used case) */
-	private Optional<MLookupInfo> _lookupInfoForWindowNone = null;
+	private transient Optional<MLookupInfo> _lookupInfoForWindowNone = null;
 
 	/**
 	 * String representation

@@ -103,6 +103,12 @@ public enum ModelChangeType
 	{
 		return isNew() || isChange();
 	}
+	
+	public boolean isChangeOrDelete()
+	{
+		return isChange() || isDelete();
+	}
+
 
 	public boolean isDelete()
 	{
