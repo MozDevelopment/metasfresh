@@ -29,14 +29,18 @@ import java.util.function.Supplier;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.util.Check;
+import org.slf4j.Logger;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader.InvalidCacheLoadException;
 import com.google.common.cache.CacheStats;
 import com.google.common.util.concurrent.ExecutionError;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+
+import de.metas.logging.LogManager;
 
 /**
  * Adempiere Cache.
@@ -200,7 +204,7 @@ public class CCache<K, V> implements ITableAwareCacheInterface
 		return tableName;
 	}
 
-	// private static final transient Logger logger = CLogMgt.getLogger(CCache.class);
+	private static final transient Logger logger = LogManager.getLogger(CCache.class);
 
 	private final CacheMapType cacheMapType;
 	/** Internal map that is used as cache */
@@ -325,6 +329,8 @@ public class CCache<K, V> implements ITableAwareCacheInterface
 	{
 		if (tableName == null)
 		{
+			// shall not happen
+			logger.warn("resetForRecordId was called with no tableName for {}. Doing a full cache reset", this);
 			return reset();
 		}
 		
@@ -357,22 +363,19 @@ public class CCache<K, V> implements ITableAwareCacheInterface
 	@Override
 	public String toString()
 	{
-		final StringBuilder sb = new StringBuilder("CCache[");
-		sb.append(m_name)
-				.append(", id=").append(cacheId)
-				.append(", Exp=").append(expireMinutes)
-				.append(", #").append(cache.size());
-
+		ToStringHelper toStringHelper = MoreObjects.toStringHelper(this)
+				.add("name", m_name)
+				.add("cacheId", cacheId)
+				.add("expireMinutes", expireMinutes)
+				.add("size", cache.size());
 		if (DEBUG)
 		{
-			sb.append("\ncacheId=").append(debugId);
-			sb.append("\n").append(this.debugAquireStacktrace);
+			toStringHelper = toStringHelper
+					.add("\ndebugId", debugId)
+					.add("\ndebugAquireStacktrace", debugAquireStacktrace);
 		}
-
-		sb.append("]");
-
-		return sb.toString();
-	}	// toString
+		return toStringHelper.toString();
+	}
 
 	/**
 	 * Clear cache
