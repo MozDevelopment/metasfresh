@@ -1536,4 +1536,11 @@ public final class POInfo implements Serializable
 
 		return Optional.of(sql.toString());
 	}
+	
+	public boolean isCacheInvalidateParent(final int columnIndex)
+	{
+		// FIXME: introduce a dedicated column because not all columns which are flagged as parent shall invalidate cache.
+		// e.g. C_InvoiceTax.C_Tax_ID => shall not invalidate cache for C_Tax because it's a master data while C_InvoiceTax is transactional data.
+		return isColumnParent(columnIndex);
+	}
 }   // POInfo

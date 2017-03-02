@@ -42,16 +42,16 @@ import de.metas.logging.LogManager;
 	}
 
 	@Override
-	public void onReset(final String tableName, final int recordId)
+	public void onReset(final CacheInvalidateRequest request)
 	{
 		listeners.forEach(listener -> {
 			try
 			{
-				listener.onReset(tableName, recordId);
+				listener.onReset(request);
 			}
-			catch (Exception ex)
+			catch (final Exception ex)
 			{
-				logger.warn("Failed invoking {} for tableName={}, recordId={}. Ignored", listener, tableName, recordId, ex);
+				logger.warn("Failed invoking {} for {}. Ignored", listener, request, ex);
 			}
 		});
 	}

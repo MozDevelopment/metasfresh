@@ -73,8 +73,8 @@ import org.adempiere.model.InterfaceWrapperHelper;
 import org.adempiere.service.ISysConfigBL;
 import org.adempiere.util.Check;
 import org.adempiere.util.Services;
-import org.adempiere.util.lang.impl.TableRecordReference;
 import org.compiere.Adempiere;
+import org.compiere.util.CacheInvalidateRequest;
 import org.compiere.util.CacheMgt;
 import org.compiere.util.DB;
 import org.compiere.util.DB.OnFail;
@@ -2998,7 +2998,7 @@ public abstract class PO
 //			CacheMgt.get().resetOnTrxCommit(get_TrxName(), p_info.getTableName(), id);
 //		}
 		{
-			final List<TableRecordReference> cacheResetEvents = extractCacheResetEvents(newRecord ? ModelChangeType.AFTER_NEW : ModelChangeType.AFTER_CHANGE);
+			final List<CacheInvalidateRequest> cacheResetEvents = extractCacheResetEvents(newRecord ? ModelChangeType.AFTER_NEW : ModelChangeType.AFTER_CHANGE);
 			CacheMgt.get().resetOnTrxCommit(get_TrxName(), cacheResetEvents);
 		}
 
@@ -4039,7 +4039,7 @@ public abstract class PO
 		if (success)
 		{
 			// Extract all records that we have to reset
-			final List<TableRecordReference> cacheResetEvents = extractCacheResetEvents(ModelChangeType.AFTER_DELETE);
+			final List<CacheInvalidateRequest> cacheResetEvents = extractCacheResetEvents(ModelChangeType.AFTER_DELETE);
 			
 			final int size = p_info.getColumnCount();
 			m_oldValues = new Object[size];
@@ -4052,9 +4052,11 @@ public abstract class PO
 		}
 	}
 	
-	private final List<TableRecordReference> extractCacheResetEvents(final ModelChangeType changeType)
+	private final List<CacheInvalidateRequest> extractCacheResetEvents(final ModelChangeType changeType)
 	{
-		final ImmutableList.Builder<TableRecordReference> recordsToReset = ImmutableList.builder();
+		final ImmutableList.Builder<CacheInvalidateRequest> recordsToReset = ImmutableList.builder();
+		
+		final String tableName = p_info.getTableName();
 		
 		if (p_info.hasKeyColumn())
 		{
@@ -4064,11 +4066,11 @@ public abstract class PO
 			}
 			else if(changeType.isChange())
 			{
-				recordsToReset.add(TableRecordReference.of(p_info.getTableName(), get_ID()));
+				recordsToReset.add(CacheInvalidateRequest.record(tableName, get_ID()));
 			}
 			else if(changeType.isDelete())
 			{
-				recordsToReset.add(TableRecordReference.of(p_info.getTableName(), get_IDOld()));
+				recordsToReset.add(CacheInvalidateRequest.record(tableName, get_IDOld()));
 			}
 		}
 
@@ -4093,7 +4095,7 @@ public abstract class PO
 				final int parentOldRecordId = InterfaceWrapperHelper.checkZeroIdValue(columnName, get_ValueOldAsInt(columnIndex));
 				if(parentOldRecordId >= 0)
 				{
-					recordsToReset.add(TableRecordReference.of(parentTableName, parentOldRecordId));
+					recordsToReset.add(CacheInvalidateRequest.childRecord(parentTableName, parentOldRecordId, tableName, get_ID()));
 				}
 			}
 			if(changeType.isNewOrChange())
@@ -4101,7 +4103,7 @@ public abstract class PO
 				final int parentRecordId = InterfaceWrapperHelper.checkZeroIdValue(columnName, get_ValueAsInt(columnIndex));
 				if(parentRecordId >= 0)
 				{
-					recordsToReset.add(TableRecordReference.of(parentTableName, parentRecordId));
+					recordsToReset.add(CacheInvalidateRequest.childRecord(parentTableName, parentRecordId, tableName, get_ID()));
 				}
 			}
 		}

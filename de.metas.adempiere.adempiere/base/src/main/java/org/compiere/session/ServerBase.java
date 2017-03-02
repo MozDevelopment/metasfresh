@@ -30,6 +30,7 @@ import org.adempiere.acct.api.IPostingService;
 import org.adempiere.ad.trx.api.ITrx;
 import org.adempiere.util.Services;
 import org.compiere.model.MTask;
+import org.compiere.util.CacheInvalidateRequest;
 import org.compiere.util.CacheMgt;
 import org.compiere.util.Env;
 import org.slf4j.Logger;
@@ -177,7 +178,7 @@ public class ServerBase implements IServerService
 		log.info("[{}] cacheReset: Table={}, Record_ID={}", m_no, tableName, Record_ID);
 		m_cacheResetCount.incrementAndGet();
 
-		return CacheMgt.get().reset(tableName, Record_ID);
+		return CacheMgt.get().reset(CacheInvalidateRequest.record(tableName, Record_ID));
 	}	// cacheReset
 
 	/**************************************************************************

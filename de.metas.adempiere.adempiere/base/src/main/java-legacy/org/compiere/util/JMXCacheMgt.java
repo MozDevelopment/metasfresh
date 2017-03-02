@@ -97,7 +97,7 @@ public class JMXCacheMgt implements JMXCacheMgtMBean, IJMXNameAware
 	@Override
 	public int resetForRecordId(final String tableName, final int recordId)
 	{
-		return getCacheMgt().reset(tableName, recordId);
+		return getCacheMgt().reset(CacheInvalidateRequest.record(tableName, recordId));
 	}
 
 }

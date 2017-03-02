@@ -37,8 +37,6 @@ import org.adempiere.util.jmx.JMXRegistry;
 import org.adempiere.util.jmx.JMXRegistry.OnJMXAlreadyExistsPolicy;
 import org.adempiere.util.lang.EqualsBuilder;
 import org.adempiere.util.lang.HashcodeBuilder;
-import org.adempiere.util.lang.ITableRecordReference;
-import org.adempiere.util.lang.impl.TableRecordReference;
 import org.slf4j.Logger;
 
 import com.google.common.base.MoreObjects;
@@ -86,8 +84,6 @@ public final class CacheMgt
 
 		JMXRegistry.get().registerJMX(new JMXCacheMgt(), OnJMXAlreadyExistsPolicy.Replace);
 	}
-
-	public static final int RECORD_ID_ALL = -1;
 
 	/** List of Instances */
 	private final WeakList<CacheInterface> cacheInstances = new WeakList<CacheInterface>();
@@ -332,8 +328,7 @@ public final class CacheMgt
 	 */
 	public int reset(final String tableName)
 	{
-		final int recordId = RECORD_ID_ALL;
-		return reset(tableName, recordId);
+		return reset(CacheInvalidateRequest.table(tableName));
 	}	// reset
 
 	/**
@@ -345,11 +340,16 @@ public final class CacheMgt
 	 */
 	public int reset(final String tableName, final int recordId)
 	{
-		final boolean broadcast = true;
-		return reset(tableName, recordId, broadcast);
+		return reset(CacheInvalidateRequest.record(tableName, recordId));
 	}
 	
-	public void reset(final Collection<? extends ITableRecordReference> records)
+	public int reset(final CacheInvalidateRequest request)
+	{
+		final boolean broadcast = true;
+		return reset(request, broadcast);
+	}
+	
+	public void reset(final Collection<CacheInvalidateRequest> records)
 	{
 		if(records.isEmpty())
 		{
@@ -364,7 +364,7 @@ public final class CacheMgt
 				return;
 			}
 			
-			reset(record.getTableName(), record.getRecord_ID());
+			reset(record);
 		});
 	}
 
@@ -387,12 +387,12 @@ public final class CacheMgt
 			return;
 		}
 
-		RecordsToResetOnTrxCommitCollector.getCreate(trx).addRecord(tableName, recordId);
+		RecordsToResetOnTrxCommitCollector.getCreate(trx).addRequest(CacheInvalidateRequest.record(tableName, recordId));
 	}
 	
-	public void resetOnTrxCommit(final String trxName, List<TableRecordReference> records)
+	public void resetOnTrxCommit(final String trxName, List<CacheInvalidateRequest> events)
 	{
-		if(records.isEmpty())
+		if(events.isEmpty())
 		{
 			return;
 		}
@@ -401,25 +401,24 @@ public final class CacheMgt
 		final ITrx trx = trxManager.get(trxName, OnTrxMissingPolicy.ReturnTrxNone);
 		if (trxManager.isNull(trx))
 		{
-			reset(records);
+			reset(events);
 			return;
 		}
 
-		RecordsToResetOnTrxCommitCollector.getCreate(trx).addRecords(records);
+		RecordsToResetOnTrxCommitCollector.getCreate(trx).addRequests(events);
 	}
 
 
 	/**
 	 * Invalidate all cached entries for given TableName/Record_ID.
 	 * 
-	 * @param tableName
-	 * @param recordId
+	 * @param request
 	 * @param broadcast true if we shall also broadcast this remotely.
 	 * @return how many cache entries were invalidated
 	 */
-	private final int reset(final String tableName, final int recordId, final boolean broadcast)
+	private final int reset(final CacheInvalidateRequest request, final boolean broadcast)
 	{
-		if (tableName == null)
+		if (request.isCompleteReset())
 		{
 			return reset();
 		}
@@ -432,6 +431,7 @@ public final class CacheMgt
 
 			//
 			// Invalidate local caches if we have at least one cache interface about our table
+			final String tableName = request.getTableName();
 			if (tableNames.containsKey(tableName))
 			{
 				for (final CacheInterface cacheInstance : cacheInstances)
@@ -443,7 +443,16 @@ public final class CacheMgt
 					else if (cacheInstance instanceof ITableAwareCacheInterface)
 					{
 						final ITableAwareCacheInterface recordsCache = (ITableAwareCacheInterface)cacheInstance;
-						final int itemsRemoved = recordsCache.resetForRecordId(tableName, recordId);
+						final int itemsRemoved; 
+						if(request.isTableReset())
+						{
+							itemsRemoved = recordsCache.reset();
+						}
+						else
+						{
+							itemsRemoved = recordsCache.resetForRecordId(tableName, request.getRecordId());
+						}
+						
 						if (itemsRemoved > 0)
 						{
 							log.debug("Rest cache instance: {}", cacheInstance);
@@ -466,12 +475,12 @@ public final class CacheMgt
 		// We do this, even if we don't have any cache interface registered locally, because there might be remotely.
 		if (broadcast)
 		{
-			RemoteCacheInvalidationHandler.instance.postEvent(tableName, recordId);
+			RemoteCacheInvalidationHandler.instance.postEvent(request);
 		}
 		
 		//
 		// Fire local listeners
-		listeners.onReset(tableName, recordId);
+		listeners.onReset(request);
 
 		return total;
 	}	// reset
@@ -690,6 +699,8 @@ public final class CacheMgt
 				.build();
 		private static final String EVENT_PROPERTY_TableName = "TableName";
 		private static final String EVENT_PROPERTY_Record_ID = "Record_ID";
+		private static final String EVENT_PROPERTY_ChildTableName = "ChildTableName";
+		private static final String EVENT_PROPERTY_ChildRecord_ID = "ChildRecord_ID";
 
 		private boolean _initalized = false;
 		private final Set<String> tableNamesToBroadcast = Sets.newConcurrentHashSet();
@@ -745,7 +756,7 @@ public final class CacheMgt
 		 * @param tableName
 		 * @param recordId
 		 */
-		public void postEvent(final String tableName, final int recordId)
+		public void postEvent(final CacheInvalidateRequest request)
 		{
 			// Do nothing if cache invalidation broadcasting is not enabled
 			if (!isEnabled())
@@ -754,20 +765,18 @@ public final class CacheMgt
 			}
 
 			// Do nothing if given table name is not in our table names to broadcast list
+			final String tableName = request.getTableName();
 			if (!tableNamesToBroadcast.contains(tableName))
 			{
 				return;
 			}
 
 			// Broadcast the event.
-			final Event event = Event.builder()
-					.putProperty(EVENT_PROPERTY_TableName, tableName)
-					.putProperty(EVENT_PROPERTY_Record_ID, recordId < 0 ? RECORD_ID_ALL : recordId)
-					.build();
+			final Event event = createEvent(request);
 			Services.get(IEventBusFactory.class)
 					.getEventBus(TOPIC_CacheInvalidation)
 					.postEvent(event);
-			log.debug("Broadcasting cache invalidation of {}/{}, event={}", tableName, recordId, event);
+			log.debug("Broadcasting cache invalidation of {}, event={}", request, event);
 		}
 
 		/**
@@ -783,13 +792,38 @@ public final class CacheMgt
 				return;
 			}
 
+			final CacheInvalidateRequest request = createCacheInvalidateRequest(event);
+			if(request == null)
+			{
+				return;
+			}
+
+			//
+			// Reset cache for TableName/Record_ID
+			log.debug("Reseting cache for {} because we got remote event: {}", request, event);
+			final boolean broadcast = false; // don't broadcast it anymore because else we would introduce recursion
+			CacheMgt.get().reset(request, broadcast);
+		}
+		
+		private static final Event createEvent(final CacheInvalidateRequest request)
+		{
+			return Event.builder()
+					.putProperty(EVENT_PROPERTY_TableName, request.getTableName())
+					.putProperty(EVENT_PROPERTY_Record_ID, request.getRecordId())
+					.putProperty(EVENT_PROPERTY_ChildTableName, request.getChildTableName())
+					.putProperty(EVENT_PROPERTY_Record_ID, request.getChildRecordId())
+					.build();
+		}
+		
+		private static final CacheInvalidateRequest createCacheInvalidateRequest(final Event event)
+		{
 			//
 			// TableName
 			final String tableName = event.getProperty(EVENT_PROPERTY_TableName);
 			if (Check.isEmpty(tableName, true))
 			{
 				log.debug("Ignored event without tableName set: {}", event);
-				return;
+				return null;
 			}
 			// NOTE: we try to invalidate the local cache even if the tableName is not in our tableNames to broadcast list.
 
@@ -798,14 +832,26 @@ public final class CacheMgt
 			Integer recordId = event.getProperty(EVENT_PROPERTY_Record_ID);
 			if (recordId == null || recordId < 0)
 			{
-				recordId = RECORD_ID_ALL;
+				return CacheInvalidateRequest.table(tableName);
+			}
+			
+			//
+			// ChildTableName
+			final String childTableName = event.getProperty(EVENT_PROPERTY_ChildTableName);
+			if(Check.isEmpty(childTableName, true))
+			{
+				return CacheInvalidateRequest.record(tableName, recordId);
 			}
 
 			//
-			// Reset cache for TableName/Record_ID
-			log.debug("Reseting cache for {}/{} because we got remote event: {}", tableName, recordId, event);
-			final boolean broadcast = false; // don't broadcast it anymore because else we would introduce recursion
-			CacheMgt.get().reset(tableName, recordId, broadcast);
+			// Record_ID
+			Integer childRecordId = event.getProperty(EVENT_PROPERTY_ChildRecord_ID);
+			if (recordId == null || recordId < 0)
+			{
+				return CacheInvalidateRequest.childTable(tableName, recordId, childTableName);
+			}
+			
+			return CacheInvalidateRequest.childRecord(tableName, recordId, childTableName, childRecordId);
 		}
 	}
 
@@ -847,48 +893,47 @@ public final class CacheMgt
 			}
 		};
 
-		private final Set<ITableRecordReference> records = Sets.newConcurrentHashSet();
+		private final Set<CacheInvalidateRequest> requests = Sets.newConcurrentHashSet();
 
 		/** Enqueues a record */
-		public final void addRecord(final String tableName, final int recordId)
+		public final void addRequest(CacheInvalidateRequest request)
 		{
-			if (Check.isEmpty(tableName, true))
+			if (request.isCompleteReset()) // note: not sure if needed, but preserved the old logic
 			{
 				return;
 			}
-			if (recordId <= 0)
+			if (request.isTableReset()) // note: not sure if needed, but preserved the old logic
 			{
 				return;
 			}
-			final TableRecordReference record = new TableRecordReference(tableName, recordId);
-			records.add(record);
+			requests.add(request);
 			
-			log.debug("Scheduled cache invalidation on transaction commit: {}", record);
+			log.debug("Scheduled cache invalidation on transaction commit: {}", request);
 		}
 		
-		public final void addRecords(final List<TableRecordReference> recordsToAdd)
+		public final void addRequests(final List<CacheInvalidateRequest> requestsToAdd)
 		{
-			if(recordsToAdd.isEmpty())
+			if(requestsToAdd.isEmpty())
 			{
 				return;
 			}
 			
-			records.addAll(recordsToAdd);
+			requests.addAll(requestsToAdd);
 			
-			log.debug("Scheduled cache invalidation on transaction commit: {}", recordsToAdd);
+			log.debug("Scheduled cache invalidation on transaction commit: {}", requestsToAdd);
 		}
 
-		/** Reset the cache for all enqueued records */
+		/** Reset the cache for all enqueued requests */
 		private void run()
 		{
-			if (records.isEmpty())
+			if (requests.isEmpty())
 			{
 				return;
 			}
 
 			final CacheMgt cacheMgt = CacheMgt.get();
-			cacheMgt.reset(records);
-			records.clear();
+			cacheMgt.reset(requests);
+			requests.clear();
 		}
 	}
 }

@@ -29,5 +29,5 @@ package org.compiere.util;
  */
 public interface CacheMgtListener
 {
-	void onReset(final String tableName, final int recordId);
+	void onReset(final CacheInvalidateRequest request);
 }

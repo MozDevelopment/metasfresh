@@ -70,6 +70,7 @@ import org.compiere.model.MSystem;
 import org.compiere.server.AdempiereServer;
 import org.compiere.server.AdempiereServerMgr;
 import org.compiere.util.CMemoryUsage;
+import org.compiere.util.CacheInvalidateRequest;
 import org.compiere.util.CacheMgt;
 import org.compiere.util.Env;
 import org.compiere.util.Ini;
@@ -544,7 +545,7 @@ public class ServerMonitor extends HttpServlet
 			}
 			else
 			{
-				CacheMgt.get().reset(tableName, Integer.parseInt(record_ID));
+				CacheMgt.get().reset(CacheInvalidateRequest.record(tableName, Integer.parseInt(record_ID)));
 				m_message.addElement("Cache Reset: " + tableName + ", Record_ID=" + record_ID);
 			}
 		}

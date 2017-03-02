@@ -25,7 +25,7 @@ package org.compiere.util;
 public interface CacheInterface
 {
 	/**
-	 *	Reset Cache
+	 *	Complete cache reset.
 	 *	@return number of items reset
 	 */
 	public int reset();
