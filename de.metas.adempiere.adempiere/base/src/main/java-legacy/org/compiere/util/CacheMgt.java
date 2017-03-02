@@ -269,12 +269,12 @@ public final class CacheMgt
 		return null;
 	}
 
-	public Set<String> getTableNames()
+	/* package */ Set<String> getTableNames()
 	{
 		return ImmutableSet.copyOf(tableNames.keySet());
 	}
 
-	public Set<String> getTableNamesToBroadcast()
+	/* package */ Set<String> getTableNamesToBroadcast()
 	{
 		return RemoteCacheInvalidationHandler.instance.getTableNamesToBroadcast();
 	}
@@ -486,7 +486,7 @@ public final class CacheMgt
 	 *
 	 * @return count
 	 */
-	public int getElementCount()
+	private int getElementCount()
 	{
 		int total = 0;
 		cacheInstancesLock.lock();
