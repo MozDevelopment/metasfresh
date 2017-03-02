@@ -39,6 +39,7 @@ import org.adempiere.ad.trx.api.ITrx;
 import org.adempiere.ad.trx.api.ITrxManager;
 import org.adempiere.serverRoot.util.WebEnv;
 import org.adempiere.serverRoot.util.WebUtil;
+import org.adempiere.util.Check;
 import org.adempiere.util.Services;
 import org.apache.ecs.Element;
 import org.apache.ecs.HtmlColor;
@@ -533,14 +534,14 @@ public class ServerMonitor extends HttpServlet
 		m_message = new p();
 		try
 		{
-			if (tableName == null || tableName.length() == 0)
+			if (Check.isEmpty(tableName, true))
 			{
-				CacheMgt.get().reset();
+				CacheMgt.get().reset(CacheInvalidateRequest.completeReset());
 				m_message.addElement("Cache Reset: All");
 			}
-			else if (record_ID == null || record_ID.length() == 0)
+			else if (Check.isEmpty(record_ID, true))
 			{
-				CacheMgt.get().reset(tableName);
+				CacheMgt.get().reset(CacheInvalidateRequest.table(tableName));
 				m_message.addElement("Cache Reset: " + tableName);
 			}
 			else

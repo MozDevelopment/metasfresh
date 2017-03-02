@@ -91,7 +91,7 @@ public class JMXCacheMgt implements JMXCacheMgtMBean, IJMXNameAware
 	@Override
 	public int resetForTable(final String tableName)
 	{
-		return getCacheMgt().reset(tableName);
+		return getCacheMgt().reset(CacheInvalidateRequest.table(tableName));
 	}
 
 	@Override
