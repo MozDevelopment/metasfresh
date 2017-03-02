@@ -75,7 +75,8 @@ public final class POInfoColumn implements Serializable
 			boolean isKey, boolean isParent,
 			int ad_Reference_Value_ID, int AD_Val_Rule_ID,
 			int fieldLength, String valueMin, String valueMax,
-			boolean isTranslated, boolean isEncrypted, boolean isAllowLogging)
+			boolean isTranslated, boolean isEncrypted, boolean isAllowLogging,
+			final boolean cacheInvalidateParent)
 	{
 		super();
 		AD_Column_ID = ad_Column_ID;
@@ -154,6 +155,7 @@ public final class POInfoColumn implements Serializable
 		IsTranslated = isTranslated;
 		IsEncrypted = isEncrypted;
 		IsAllowLogging = isAllowLogging;
+		this.cacheInvalidateParent = cacheInvalidateParent;
 	}   // Column
 
 	/**
@@ -248,14 +250,11 @@ public final class POInfoColumn implements Serializable
 
 	private final String sqlColumnForSelect;
 	
+	private final boolean cacheInvalidateParent;
+	
 	/** Cached {@link MLookupInfo} for {@link Env#WINDOW_None} (most used case) */
 	private transient Optional<MLookupInfo> _lookupInfoForWindowNone = null;
 
-	/**
-	 * String representation
-	 * 
-	 * @return info
-	 */
 	@Override
 	public String toString()
 	{
@@ -434,5 +433,10 @@ public final class POInfoColumn implements Serializable
 			return null;
 		}
 		
+	}
+	
+	public boolean isCacheInvalidateParent()
+	{
+		return cacheInvalidateParent;
 	}
 }	// POInfoColumn

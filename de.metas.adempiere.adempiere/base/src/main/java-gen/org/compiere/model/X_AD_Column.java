@@ -1,19 +1,3 @@
-/******************************************************************************
- * Product: Adempiere ERP & CRM Smart Business Solution                       *
- * Copyright (C) 1999-2007 ComPiere, Inc. All Rights Reserved.                *
- * This program is free software, you can redistribute it and/or modify it    *
- * under the terms version 2 of the GNU General Public License as published   *
- * by the Free Software Foundation. This program is distributed in the hope   *
- * that it will be useful, but WITHOUT ANY WARRANTY, without even the implied *
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.           *
- * See the GNU General Public License for more details.                       *
- * You should have received a copy of the GNU General Public License along    *
- * with this program, if not, write to the Free Software Foundation, Inc.,    *
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.                     *
- * For the text or an alternative of this public license, you may reach us    *
- * ComPiere, Inc., 2620 Augustine Dr. #245, Santa Clara, CA 95054, USA        *
- * or via info@compiere.org or http://www.compiere.org/license.html           *
- *****************************************************************************/
 /** Generated Model - DO NOT CHANGE */
 package org.compiere.model;
 
@@ -32,7 +16,7 @@ public class X_AD_Column extends org.compiere.model.PO implements I_AD_Column, o
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 1466881409L;
+	private static final long serialVersionUID = 962758120L;
 
     /** Standard Constructor */
     public X_AD_Column (Properties ctx, int AD_Column_ID, String trxName)
@@ -45,6 +29,8 @@ public class X_AD_Column extends org.compiere.model.PO implements I_AD_Column, o
 			setAD_Reference_ID (0);
 			setAD_Table_ID (0);
 			setAllowZoomTo (false);
+// N
+			setCacheInvalidateParent (false);
 // N
 			setColumnName (null);
 			setDDL_NoForeignKey (false);
@@ -89,14 +75,6 @@ public class X_AD_Column extends org.compiere.model.PO implements I_AD_Column, o
     {
       org.compiere.model.POInfo poi = org.compiere.model.POInfo.getPOInfo (ctx, Table_Name, get_TrxName());
       return poi;
-    }
-
-    @Override
-    public String toString()
-    {
-      StringBuilder sb = new StringBuilder ("X_AD_Column[")
-        .append(get_ID()).append("]");
-      return sb.toString();
     }
 
 	/** Set Spalte.
@@ -369,23 +347,27 @@ public class X_AD_Column extends org.compiere.model.PO implements I_AD_Column, o
 		return false;
 	}
 
-	/** Set ColumnClass.
-		@param ColumnClass 
-		Vortual Column (r/o)
-	  */
+	/** Set Invalidate parent cache.
+		@param CacheInvalidateParent Invalidate parent cache	  */
 	@Override
-	public void setColumnClass (java.lang.String ColumnClass)
+	public void setCacheInvalidateParent (boolean CacheInvalidateParent)
 	{
-		set_Value (COLUMNNAME_ColumnClass, ColumnClass);
+		set_Value (COLUMNNAME_CacheInvalidateParent, Boolean.valueOf(CacheInvalidateParent));
 	}
 
-	/** Get ColumnClass.
-		@return Vortual Column (r/o)
-	  */
+	/** Get Invalidate parent cache.
+		@return Invalidate parent cache	  */
 	@Override
-	public java.lang.String getColumnClass () 
+	public boolean isCacheInvalidateParent () 
 	{
-		return (java.lang.String)get_Value(COLUMNNAME_ColumnClass);
+		Object oo = get_Value(COLUMNNAME_CacheInvalidateParent);
+		if (oo != null) 
+		{
+			 if (oo instanceof Boolean) 
+				 return ((Boolean)oo).booleanValue(); 
+			return "Y".equals(oo);
+		}
+		return false;
 	}
 
 	/** Set Spaltenname.

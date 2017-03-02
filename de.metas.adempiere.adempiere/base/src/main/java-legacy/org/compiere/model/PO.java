@@ -4076,20 +4076,17 @@ public abstract class PO
 
 		//
 		// Check the parent links
-		for (int columnIndex = 0, columnsCount = p_info.getColumnCount(); columnIndex < columnsCount; columnIndex++)
+		for (final int columnIndex : p_info.getColumnIndexesWithCacheInvalidateParent())
 		{
-			if (!p_info.isColumnParent(columnIndex))
-			{
-				continue;
-			}
-			
+			final String columnName = p_info.getColumnName(columnIndex);
 			final String parentTableName = p_info.getReferencedTableNameOrNull(columnIndex);
 			if(parentTableName == null)
 			{
+				// shall not happen
+				log.warn("Column {}.{} was flagged to invalidate the parent but there is no referenced table name. Ignored.", tableName, columnName);
 				continue;
 			}
 			
-			final String columnName = p_info.getColumnName(columnIndex);
 			if (changeType.isChangeOrDelete())
 			{
 				final int parentOldRecordId = InterfaceWrapperHelper.checkZeroIdValue(columnName, get_ValueOldAsInt(columnIndex));

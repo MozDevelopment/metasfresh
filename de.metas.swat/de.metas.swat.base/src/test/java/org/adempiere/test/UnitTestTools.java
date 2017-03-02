@@ -270,7 +270,9 @@ public class UnitTestTools
 				null, // valueMax
 				false, // IsTranslated
 				false, // IsEncrypted
-				false); // IsAllowLogging
+				false, // IsAllowLogging
+				false // cacheInvalidateParent
+				);
 
 		expect(poInfo.getColumn(colCount)).andStubReturn(poInfoColumn);
 		return poInfoColumn;

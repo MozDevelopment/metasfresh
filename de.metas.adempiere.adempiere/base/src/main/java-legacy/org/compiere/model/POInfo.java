@@ -41,6 +41,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 
 import de.metas.logging.LogManager;
@@ -205,6 +206,7 @@ public final class POInfo implements Serializable
 
 	private Map<String, Integer> columnName2columnIndex;
 	private Map<Integer, Integer> adColumnId2columnIndex;
+	private Set<Integer> columnIndexesWithCacheInvalidateParent;
 
 	/**
 	 * Key Column Names
@@ -269,6 +271,7 @@ public final class POInfo implements Serializable
 				+ ",c." + I_AD_Column.COLUMNNAME_IsStaleable					// 28 // metas: 01537
 				+ ",c." + I_AD_Column.COLUMNNAME_IsSelectionColumn				// 29 // metas
 				+ ",t." + I_AD_Table.COLUMNNAME_IsView							// 30 // metas
+				+ ",c." + I_AD_Column.COLUMNNAME_CacheInvalidateParent			// 31 // metasfresh/metasfresh-webui#19
 		);
 		sql.append(" FROM AD_Table t "
 				+ " INNER JOIN AD_Column c ON (t.AD_Table_ID=c.AD_Table_ID) "
@@ -348,6 +351,8 @@ public final class POInfo implements Serializable
 				}
 
 				final boolean isSelectionColumn = "Y".equals(rs.getString(I_AD_Column.COLUMNNAME_IsSelectionColumn));
+				
+				final boolean cacheInvalidateParent = DisplayType.toBoolean(rs.getString(I_AD_Column.COLUMNNAME_CacheInvalidateParent));
 
 				final POInfoColumn col = new POInfoColumn(
 						AD_Column_ID, ColumnName, ColumnSQL, AD_Reference_ID,
@@ -359,7 +364,9 @@ public final class POInfo implements Serializable
 						AD_Reference_Value_ID, AD_Val_Rule_ID,
 						FieldLength, ValueMin, ValueMax,
 						IsTranslated, IsEncrypted,
-						IsAllowLogging);
+						IsAllowLogging,
+						cacheInvalidateParent
+				);
 				col.IsLazyLoading = IsLazyLoading; // metas
 				col.IsCalculated = IsCalculated; // metas
 				col.IsUseDocumentSequence = isUseDocumentSequence; // metas: _05133
@@ -390,6 +397,7 @@ public final class POInfo implements Serializable
 		// and ofc in SQL queries could be with ANY case...
 		final ImmutableSortedMap.Builder<String, Integer> columnName2columnIndexBuilder = ImmutableSortedMap.orderedBy(String.CASE_INSENSITIVE_ORDER);
 		final ImmutableMap.Builder<Integer, Integer> adColumnId2columnIndexBuilder = ImmutableMap.<Integer, Integer> builder();
+		final ImmutableSet.Builder<Integer> columnIndexesWithCacheInvalidateParent = ImmutableSet.builder();
 		this.translated = false;
 		for (int columnIndex = 0; columnIndex < columnsCount; columnIndex++)
 		{
@@ -404,9 +412,15 @@ public final class POInfo implements Serializable
 			{
 				this.translated = true;
 			}
+			
+			if(columnInfo.isCacheInvalidateParent() && columnInfo.getReferencedTableNameOrNull() != null)
+			{
+				columnIndexesWithCacheInvalidateParent.add(columnIndex);
+			}
 		}
 		this.columnName2columnIndex = columnName2columnIndexBuilder.build();
 		this.adColumnId2columnIndex = adColumnId2columnIndexBuilder.build();
+		this.columnIndexesWithCacheInvalidateParent = columnIndexesWithCacheInvalidateParent.build();
 
 		//
 		// Set Key Columns Info
@@ -1539,8 +1553,11 @@ public final class POInfo implements Serializable
 	
 	public boolean isCacheInvalidateParent(final int columnIndex)
 	{
-		// FIXME: introduce a dedicated column because not all columns which are flagged as parent shall invalidate cache.
-		// e.g. C_InvoiceTax.C_Tax_ID => shall not invalidate cache for C_Tax because it's a master data while C_InvoiceTax is transactional data.
-		return isColumnParent(columnIndex);
+		return columnIndexesWithCacheInvalidateParent.contains(columnIndex);
+	}
+	
+	public Set<Integer> getColumnIndexesWithCacheInvalidateParent()
+	{
+		return columnIndexesWithCacheInvalidateParent;
 	}
 }   // POInfo
