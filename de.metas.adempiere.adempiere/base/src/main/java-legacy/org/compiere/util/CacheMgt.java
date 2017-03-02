@@ -287,8 +287,9 @@ public final class CacheMgt
 	public int reset()
 	{
 		// Do nothing if already running (i.e. avoid recursion)
-		if (cacheResetRunning.getAndSet(true))
+		if (cacheCompleteResetRunning.getAndSet(true))
 		{
+			log.debug("Cache reset is already running. Doing nothing");
 			return 0;
 		}
 
@@ -297,7 +298,6 @@ public final class CacheMgt
 		int total = 0;
 		try
 		{
-
 			for (final CacheInterface cacheInstance : cacheInstances)
 			{
 				if (cacheInstance != null && cacheInstance.size() > 0)
@@ -310,15 +310,15 @@ public final class CacheMgt
 		finally
 		{
 			cacheInstancesLock.unlock();
-			cacheResetRunning.set(false);
+			cacheCompleteResetRunning.set(false);
 		}
 
-		log.info("Reset all: {} cache instances invalidated ({} cached items invalidated)", counter, total);
+		log.info("Reset all: {} cache instances invalidated, {} cached items invalidated", counter, total);
 
 		return total;
 	}	// reset
 
-	private final transient AtomicBoolean cacheResetRunning = new AtomicBoolean();
+	private final transient AtomicBoolean cacheCompleteResetRunning = new AtomicBoolean();
 
 	/**
 	 * Invalidate all cached entries for given TableName.
@@ -422,6 +422,8 @@ public final class CacheMgt
 		{
 			return reset();
 		}
+		
+		log.debug("Reseting caches for {}", request);
 
 		int total = 0;
 		cacheInstancesLock.lock();
@@ -443,19 +445,13 @@ public final class CacheMgt
 					else if (cacheInstance instanceof ITableAwareCacheInterface)
 					{
 						final ITableAwareCacheInterface recordsCache = (ITableAwareCacheInterface)cacheInstance;
-						final int itemsRemoved; 
-						if(request.isTableReset())
-						{
-							itemsRemoved = recordsCache.reset();
-						}
-						else
-						{
-							itemsRemoved = recordsCache.resetForRecordId(tableName, request.getRecordId());
-						}
+						// NOTE: don't check for request.isTableReset() because atm that logic is handled by each cache instance implementation
+						// i.e. resetForRecordId implementations are checking if tableName matches.
+						final int itemsRemoved = recordsCache.resetForRecordId(tableName, request.getRecordId());
 						
 						if (itemsRemoved > 0)
 						{
-							log.debug("Rest cache instance: {}", cacheInstance);
+							log.debug("Reset cache instance: {}", cacheInstance);
 							total += itemsRemoved;
 							counter++;
 						}
@@ -463,7 +459,7 @@ public final class CacheMgt
 				}
 			}
 			//
-			log.debug("Reset {}: {} cache interfaces checked ({} records invalidated)", tableName, counter, total);
+			log.debug("Reset {}: {} cache interfaces checked, {} records invalidated", tableName, counter, total);
 		}
 		finally
 		{
