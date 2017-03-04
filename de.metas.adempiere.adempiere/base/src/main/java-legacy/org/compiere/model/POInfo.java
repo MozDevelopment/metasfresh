@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import org.adempiere.ad.security.TableAccessLevel;
 import org.adempiere.ad.trx.api.ITrx;
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -206,8 +208,7 @@ public final class POInfo implements Serializable
 
 	private Map<String, Integer> columnName2columnIndex;
 	private Map<Integer, Integer> adColumnId2columnIndex;
-	private Set<Integer> columnIndexesWithCacheInvalidateParent;
-
+	
 	/**
 	 * Key Column Names
 	 */
@@ -239,6 +240,10 @@ public final class POInfo implements Serializable
 	private ImmutableList<String> translatedColumnNames = null; // built on demand
 	private Optional<String> sqlSelectTrlByIdAndLanguage;  // built on demand
 	private Optional<String> sqlSelectTrlById;  // built on demand
+	
+	// IMPORTANT: build on demand to avoid recursion when loading a POInfo which has a lookup which is referencing same table
+	private Supplier<Set<Integer>> _columnIndexesWithCacheInvalidateParent = Suppliers.memoize(()->buildColumnIndexesWithCacheInvalidateParent()); 
+
 
 	/**
 	 * Load Table/Column Info into this instance. If the select returns no result, nothing is loaded and no error is raised.
@@ -397,7 +402,6 @@ public final class POInfo implements Serializable
 		// and ofc in SQL queries could be with ANY case...
 		final ImmutableSortedMap.Builder<String, Integer> columnName2columnIndexBuilder = ImmutableSortedMap.orderedBy(String.CASE_INSENSITIVE_ORDER);
 		final ImmutableMap.Builder<Integer, Integer> adColumnId2columnIndexBuilder = ImmutableMap.<Integer, Integer> builder();
-		final ImmutableSet.Builder<Integer> columnIndexesWithCacheInvalidateParent = ImmutableSet.builder();
 		this.translated = false;
 		for (int columnIndex = 0; columnIndex < columnsCount; columnIndex++)
 		{
@@ -412,15 +416,9 @@ public final class POInfo implements Serializable
 			{
 				this.translated = true;
 			}
-			
-			if(columnInfo.isCacheInvalidateParent() && columnInfo.getReferencedTableNameOrNull() != null)
-			{
-				columnIndexesWithCacheInvalidateParent.add(columnIndex);
-			}
 		}
 		this.columnName2columnIndex = columnName2columnIndexBuilder.build();
 		this.adColumnId2columnIndex = adColumnId2columnIndexBuilder.build();
-		this.columnIndexesWithCacheInvalidateParent = columnIndexesWithCacheInvalidateParent.build();
 
 		//
 		// Set Key Columns Info
@@ -1551,13 +1549,22 @@ public final class POInfo implements Serializable
 		return Optional.of(sql.toString());
 	}
 	
-	public boolean isCacheInvalidateParent(final int columnIndex)
+	private final Set<Integer> buildColumnIndexesWithCacheInvalidateParent()
 	{
-		return columnIndexesWithCacheInvalidateParent.contains(columnIndex);
+		final ImmutableSet.Builder<Integer> columnIndexesWithCacheInvalidateParent = ImmutableSet.builder();
+		for (int columnIndex = 0, count = m_columns.length; columnIndex < count; columnIndex++)
+		{
+			final POInfoColumn columnInfo = m_columns[columnIndex];
+			if(columnInfo.isCacheInvalidateParent() && columnInfo.getReferencedTableNameOrNull() != null)
+			{
+				columnIndexesWithCacheInvalidateParent.add(columnIndex);
+			}
+		}
+		return columnIndexesWithCacheInvalidateParent.build();
 	}
 	
 	public Set<Integer> getColumnIndexesWithCacheInvalidateParent()
 	{
-		return columnIndexesWithCacheInvalidateParent;
+		return _columnIndexesWithCacheInvalidateParent.get();
 	}
 }   // POInfo
