@@ -16,7 +16,7 @@ public class X_M_Attribute extends org.compiere.model.PO implements I_M_Attribut
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 224866491L;
+	private static final long serialVersionUID = -617932061L;
 
     /** Standard Constructor */
     public X_M_Attribute (Properties ctx, int M_Attribute_ID, String trxName)
@@ -90,6 +90,43 @@ public class X_M_Attribute extends org.compiere.model.PO implements I_M_Attribut
 	}
 
 	@Override
+	public org.compiere.model.I_AD_Reference getAD_Reference_Value() throws RuntimeException
+	{
+		return get_ValueAsPO(COLUMNNAME_AD_Reference_Value_ID, org.compiere.model.I_AD_Reference.class);
+	}
+
+	@Override
+	public void setAD_Reference_Value(org.compiere.model.I_AD_Reference AD_Reference_Value)
+	{
+		set_ValueFromPO(COLUMNNAME_AD_Reference_Value_ID, org.compiere.model.I_AD_Reference.class, AD_Reference_Value);
+	}
+
+	/** Set Referenzschlüssel.
+		@param AD_Reference_Value_ID 
+		Muss definiert werden, wenn die Validierungsart Tabelle oder Liste ist.
+	  */
+	@Override
+	public void setAD_Reference_Value_ID (int AD_Reference_Value_ID)
+	{
+		if (AD_Reference_Value_ID < 1) 
+			set_Value (COLUMNNAME_AD_Reference_Value_ID, null);
+		else 
+			set_Value (COLUMNNAME_AD_Reference_Value_ID, Integer.valueOf(AD_Reference_Value_ID));
+	}
+
+	/** Get Referenzschlüssel.
+		@return Muss definiert werden, wenn die Validierungsart Tabelle oder Liste ist.
+	  */
+	@Override
+	public int getAD_Reference_Value_ID () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_AD_Reference_Value_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	@Override
 	public org.compiere.model.I_AD_Val_Rule getAD_Val_Rule() throws RuntimeException
 	{
 		return get_ValueAsPO(COLUMNNAME_AD_Val_Rule_ID, org.compiere.model.I_AD_Val_Rule.class);
@@ -139,6 +176,8 @@ public class X_M_Attribute extends org.compiere.model.PO implements I_M_Attribut
 	public static final String ATTRIBUTEVALUETYPE_List = "L";
 	/** Date = D */
 	public static final String ATTRIBUTEVALUETYPE_Date = "D";
+	/** Table = T */
+	public static final String ATTRIBUTEVALUETYPE_Table = "T";
 	/** Set Attribute Value Type.
 		@param AttributeValueType 
 		Type of Attribute Value

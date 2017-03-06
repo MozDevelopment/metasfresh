@@ -96,6 +96,35 @@ public interface I_M_Attribute
     public static final String COLUMNNAME_AD_Org_ID = "AD_Org_ID";
 
 	/**
+	 * Set Referenzschlüssel.
+	 * Muss definiert werden, wenn die Validierungsart Tabelle oder Liste ist.
+	 *
+	 * <br>Type: Search
+	 * <br>Mandatory: false
+	 * <br>Virtual Column: false
+	 */
+	public void setAD_Reference_Value_ID (int AD_Reference_Value_ID);
+
+	/**
+	 * Get Referenzschlüssel.
+	 * Muss definiert werden, wenn die Validierungsart Tabelle oder Liste ist.
+	 *
+	 * <br>Type: Search
+	 * <br>Mandatory: false
+	 * <br>Virtual Column: false
+	 */
+	public int getAD_Reference_Value_ID();
+
+	public org.compiere.model.I_AD_Reference getAD_Reference_Value();
+
+	public void setAD_Reference_Value(org.compiere.model.I_AD_Reference AD_Reference_Value);
+
+    /** Column definition for AD_Reference_Value_ID */
+    public static final org.adempiere.model.ModelColumn<I_M_Attribute, org.compiere.model.I_AD_Reference> COLUMN_AD_Reference_Value_ID = new org.adempiere.model.ModelColumn<I_M_Attribute, org.compiere.model.I_AD_Reference>(I_M_Attribute.class, "AD_Reference_Value_ID", org.compiere.model.I_AD_Reference.class);
+    /** Column name AD_Reference_Value_ID */
+    public static final String COLUMNNAME_AD_Reference_Value_ID = "AD_Reference_Value_ID";
+
+	/**
 	 * Set Dynamische Validierung.
 	 * Regel für die  dynamische Validierung
 	 *
