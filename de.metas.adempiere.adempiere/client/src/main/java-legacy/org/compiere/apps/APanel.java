@@ -20,6 +20,7 @@ package org.compiere.apps;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Event;
@@ -33,7 +34,6 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -69,10 +69,10 @@ import org.adempiere.ad.persistence.TableModelLoader;
 import org.adempiere.ad.security.IUserRolePermissions;
 import org.adempiere.ad.trx.api.ITrx;
 import org.adempiere.exceptions.AdempiereException;
-import org.adempiere.model.CopyRecordFactory;
-import org.adempiere.model.CopyRecordSupport;
 import org.adempiere.model.InterfaceWrapperHelper;
-import org.adempiere.model.TableInfoVO;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
+import org.adempiere.model.copyRecord.CopyRecordSupport;
+import org.adempiere.model.copyRecord.CopyRecordSupportChildInfo;
 import org.adempiere.plaf.AdempierePLAF;
 import org.adempiere.plaf.VPanelUI;
 import org.adempiere.process.event.IProcessEventListener;
@@ -1437,7 +1437,7 @@ public class APanel extends CPanel
 
 		aNew.setEnabled(((inserting && changedColumn > 0) || !inserting) && insertRecord);
 		aCopy.setEnabled(!changed && insertRecord);
-		aCopyDetails.setEnabled(!changed && insertRecord && CopyRecordFactory.isEnabled(m_curTab));
+		aCopyDetails.setEnabled(!changed && insertRecord && CopyRecordFactory.isEnabledForTableName(m_curTab.getTableName()));
 		aRefresh.setEnabled(!changed);
 		aDelete.setEnabled(!changed && deleteRecord);
 		aDeleteSelection.setEnabled(!changed && deleteRecord); // same as "aDelete"
@@ -2191,7 +2191,7 @@ public class APanel extends CPanel
 		// If we were asked to copy with details, ask the user which child tables he/she wants to be copied
 		if (DataNewCopyMode.isCopyWithDetails(copyMode))
 		{
-			final List<TableInfoVO> childTablesToBeCopied = getSuggestedChildTablesToCopyWithDetails();
+			final List<CopyRecordSupportChildInfo> childTablesToBeCopied = getSuggestedChildTablesToCopyWithDetails(getParent(), m_curTab);
 			// If user canceled then ignore everything and get out
 			if (childTablesToBeCopied == null)
 			{
@@ -2356,7 +2356,7 @@ public class APanel extends CPanel
 		if (m_curAPanelTab != null)
 			manualCmd = false;
 		log.debug("cmd_save: Manual={}", manualCmd);
-		
+
 		m_errorDisplayed = false;
 		m_curGC.stopEditor(true);
 		m_curGC.acceptEditorChanges();
@@ -2546,7 +2546,7 @@ public class APanel extends CPanel
 		}
 
 		cmd_save(false);
-		
+
 		ProcessDialog.builder()
 				.setAD_Process_ID(AD_Process_ID)
 				.setFromGridTab(m_curTab)
@@ -2620,16 +2620,16 @@ public class APanel extends CPanel
 			{
 				va.requestFocus();
 			}
-			
+
 			@Override
 			public void windowClosed(final WindowEvent e)
 			{
 				m_curTab.loadAttachments();				// reload
-				
+
 				aAttachment.setPressed(m_curTab.hasAttachment());
 			}
 		});
-		
+
 		AEnv.showCenterScreen(va);
 	}	// attachment
 
@@ -2675,7 +2675,7 @@ public class APanel extends CPanel
 	private void cmd_lock()
 	{
 		log.debug("cmd_lock: lastModifiers={}", m_lastModifiers);
-		
+
 		if (!m_isPersonalLock)
 			return;
 		int record_ID = m_curTab.getRecord_ID();
@@ -2837,14 +2837,14 @@ public class APanel extends CPanel
 		final String columnName = vButton.getColumnName();
 
 		// Zoom
-		if (columnBL.isRecordColumnName (columnName))
+		if (columnBL.isRecordColumnName(columnName))
 		{
 			int AD_Table_ID = columnBL.getContextADTableID(m_ctx, m_curWindowNo, columnName);
 			int Record_ID = Env.getContextAsInt(m_ctx, m_curWindowNo, columnName);
 			AEnv.zoom(AD_Table_ID, Record_ID);
 			return;
 		}    // Zoom
-		
+
 		// save first ---------------
 		if (m_curTab.needSave(true, false))
 			if (!cmd_save(true))
@@ -3016,7 +3016,7 @@ public class APanel extends CPanel
 		// Start Process ----
 		// or invoke user form
 		//
-		
+
 		if (vButton.getProcess_ID() <= 0)
 		{
 			if (isProcessMandatory)
@@ -3190,13 +3190,13 @@ public class APanel extends CPanel
 	private final void updateStatusLine(final ProcessInfo pi)
 	{
 		final ProcessExecutionResult result = pi.getResult();
-		
+
 		// Update Status Line
 		setStatusLine(result.getSummary(), result.isError());
 
 		//
 		// If the error or the process logs was not already reported to user, we shall display a popup now
-		if(!result.isErrorWasReportedToUser())
+		if (!result.isErrorWasReportedToUser())
 		{
 			// Show error if any
 			if (result.isError())
@@ -3208,7 +3208,7 @@ public class APanel extends CPanel
 			else if (result.isShowProcessLogs())
 			{
 				final String logInfo = result.getLogInfo();
-				if(!Check.isEmpty(logInfo, true))
+				if (!Check.isEmpty(logInfo, true))
 				{
 					ADialog.info(m_curWindowNo, this, Env.getHeader(m_ctx, m_curWindowNo), pi.getTitle(), logInfo);	// clear text
 					result.setErrorWasReportedToUser();
@@ -3430,54 +3430,57 @@ public class APanel extends CPanel
 	}
 
 	/**
-	 * @return list of {@link TableInfoVO} to be also copied or <code>null</code> if user canceled.
+	 * @return list of {@link CopyRecordSupportChildInfo} to be also copied or <code>null</code> if user canceled.
 	 */
-	private final List<TableInfoVO> getSuggestedChildTablesToCopyWithDetails()
+	private static final List<CopyRecordSupportChildInfo> getSuggestedChildTablesToCopyWithDetails(final Container parentContainer, final GridTab gridTab)
 	{
-		final JPanel messagePanel = new JPanel();
-		final JList<String> list = new JList<String>();
-		final JScrollPane scrollPane = new JScrollPane(list);
-		final Vector<String> data = new Vector<String>();
-		final CopyRecordSupport childCRS = CopyRecordFactory.getCopyRecordSupport(m_curTab.getTableName());
-		PO po = TableModelLoader.instance.getPO(m_ctx, m_curTab.getTableName(), m_curTab.getRecord_ID(), ITrx.TRXNAME_None);
-		final List<TableInfoVO> tiList = new ArrayList<TableInfoVO>();
-		for (final TableInfoVO ti : childCRS.getSuggestedChildren(po, m_curTab))
+		final Properties ctx = Env.getCtx();
+		final String adLanguage = Env.getAD_Language(ctx);
+		final List<CopyRecordSupportChildInfo> childrenInfoList;
+		final List<String> childrenInfoDisplayValues;
 		{
-			tiList.add(ti);
-			final StringBuilder displayValue = new StringBuilder();
-			displayValue.append(ti.getName());
-			//
-			data.add(displayValue.toString());
+			final CopyRecordSupport childCRS = CopyRecordFactory.builder()
+					.tableName(gridTab.getTableName())
+					.childrenInfo(gridTab.getSuggestedCopyWithDetailsList())
+					.build().create();
+			final PO po = TableModelLoader.instance.getPO(Env.getCtx(), gridTab.getTableName(), gridTab.getRecord_ID(), ITrx.TRXNAME_None);
+			childrenInfoList = ImmutableList.copyOf(childCRS.getSuggestedChildren(po));
+			childrenInfoDisplayValues = childrenInfoList.stream()
+					.map(childInfo -> childInfo.getName().translate(adLanguage))
+					.collect(ImmutableList.toImmutableList());
 		}
+
 		//
-		list.setListData(data);
-		//
+		final JList<String> list = new JList<String>();
+		list.setListData(new Vector<>(childrenInfoDisplayValues));
 		list.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 		// select entire list
-		int[] rv = new int[data.size()];
-		for (int i = 0; i < data.size(); i++)
+		final int[] rv = new int[childrenInfoDisplayValues.size()];
+		for (int i = 0; i < childrenInfoDisplayValues.size(); i++)
 			rv[i] = i;
 		list.setSelectedIndices(rv);
-		//
-		messagePanel.add(scrollPane);
 
+		//
+		final JPanel messagePanel = new JPanel();
+		final JScrollPane scrollPane = new JScrollPane(list);
+		messagePanel.add(scrollPane);
+		//
 		final JOptionPane pane = new JOptionPane(
 				messagePanel,   // message
 				JOptionPane.QUESTION_MESSAGE,   // messageType
 				JOptionPane.OK_CANCEL_OPTION); // optionType
-		final JDialog deleteDialog = pane.createDialog(this.getParent(), Services.get(IMsgBL.class).getMsg(m_ctx, "CopyDetailsSelection"));
-		deleteDialog.setVisible(true);
+		final JDialog dialog = pane.createDialog(parentContainer, Services.get(IMsgBL.class).getMsg(ctx, "CopyDetailsSelection"));
+		dialog.setVisible(true);
 		final Integer okCancel = (Integer)pane.getValue();
 		if (okCancel != null && okCancel == JOptionPane.OK_OPTION)
 		{
-			final int[] indices = list.getSelectedIndices();
-			Arrays.sort(indices);
-			final ImmutableList.Builder<TableInfoVO> suggestedList = ImmutableList.builder();
-			for (int i = 0; i < indices.length; i++)
+			final int[] selectedIndices = list.getSelectedIndices();
+			Arrays.sort(selectedIndices);
+			final ImmutableList.Builder<CopyRecordSupportChildInfo> suggestedList = ImmutableList.builder();
+			for (final int selectedIndex : selectedIndices)
 			{
-				suggestedList.add(tiList.get(indices[i]));
+				suggestedList.add(childrenInfoList.get(selectedIndex));
 			}
-
 			return suggestedList.build();
 		}
 		else

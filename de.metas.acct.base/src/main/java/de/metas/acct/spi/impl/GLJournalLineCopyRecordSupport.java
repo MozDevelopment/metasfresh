@@ -25,7 +25,7 @@ package de.metas.acct.spi.impl;
 
 import java.util.List;
 
-import org.adempiere.model.GeneralCopyRecordSupport;
+import org.adempiere.model.copyRecord.GeneralCopyRecordSupport;
 import org.compiere.model.I_GL_JournalLine;
 import org.compiere.model.PO;
 

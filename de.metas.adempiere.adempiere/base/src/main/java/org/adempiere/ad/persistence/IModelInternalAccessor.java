@@ -26,6 +26,8 @@ package org.adempiere.ad.persistence;
 import java.lang.reflect.Method;
 import java.util.Set;
 
+import org.adempiere.ad.security.TableAccessLevel;
+
 /**
  * Implementations of this interface are model wrappers which want to expose low level methods to {@link IModelMethodInfo#invoke(IModelInternalAccessor, Object[])} calls.
  * 
@@ -36,6 +38,8 @@ import java.util.Set;
  */
 public interface IModelInternalAccessor
 {
+	TableAccessLevel getAccessLevel();
+	
 	Set<String> getColumnNames();
 
 	int getColumnIndex(String columnName);
@@ -45,8 +49,12 @@ public interface IModelInternalAccessor
 	boolean isKeyColumnName(String columnName);
 
 	boolean isCalculated(String columnName);
+	
+	String getDefaultValueLogic(String columnName);
 
 	boolean hasColumnName(String columnName);
+
+	int getDisplayType(String columnName);
 
 	/**
 	 * Gets the value of given <code>columnName</code>

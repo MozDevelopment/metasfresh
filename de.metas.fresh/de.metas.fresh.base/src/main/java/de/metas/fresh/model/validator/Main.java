@@ -46,7 +46,7 @@ import org.adempiere.mm.attributes.listeners.inAusLand.InvoiceInAusLandModelAttr
 import org.adempiere.mm.attributes.listeners.inAusLand.InvoiceLineInAusLandModelAttributeSetInstanceListener;
 import org.adempiere.mm.attributes.listeners.inAusLand.OrderInAusLandModelAttributeSetInstanceListener;
 import org.adempiere.mm.attributes.listeners.inAusLand.OrderLineInAusLandModelAttributeSetInstanceListener;
-import org.adempiere.model.CopyRecordFactory;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
 import org.adempiere.util.Services;
 import org.compiere.model.I_AD_Client;
 

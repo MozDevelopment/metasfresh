@@ -2,6 +2,7 @@ package de.metas.adempiere.modelvalidator;
 
 import org.adempiere.model.InterfaceWrapperHelper;
 import org.adempiere.model.MFreightCost;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
 import org.adempiere.util.Check;
 import org.adempiere.util.Services;
 import org.compiere.model.MClient;
@@ -102,7 +103,7 @@ public class Order implements ModelValidator
 		// start: c.ghita@metas.ro: 01563
 		if (po instanceof X_C_OrderLine)
 		{
-			if (type == TYPE_BEFORE_NEW && po.getDynAttribute(PO.DYNATTR_CopyRecordSupport) == null)
+			if (type == TYPE_BEFORE_NEW && CopyRecordFactory.getExistingOrNull(po) == null)
 			{
 				final I_C_OrderLine orderLine = InterfaceWrapperHelper.create(po, I_C_OrderLine.class);
 				// bpartner address
@@ -138,7 +139,7 @@ public class Order implements ModelValidator
 
 		// start: c.ghita@metas.ro: 01447
 
-		if (po.getDynAttribute(PO.DYNATTR_CopyRecordSupport) == null)
+		if (CopyRecordFactory.getExistingOrNull(po) == null)
 		{
 			// BPartner address
 			{

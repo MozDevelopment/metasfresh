@@ -1,13 +1,13 @@
 package org.eevolution.model.impl;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import org.adempiere.model.GeneralCopyRecordSupport;
-import org.adempiere.model.TableInfoVO;
-import org.compiere.model.GridTab;
+import org.adempiere.model.copyRecord.GeneralCopyRecordSupport;
+import org.adempiere.model.copyRecord.CopyRecordSupportChildInfo;
 import org.compiere.model.PO;
 import org.eevolution.model.I_PP_Product_BOMLine;
+
+import com.google.common.collect.ImmutableList;
 
 /*
  * #%L
@@ -40,19 +40,11 @@ import org.eevolution.model.I_PP_Product_BOMLine;
 public class PP_Product_BOM_POCopyRecordSupport extends GeneralCopyRecordSupport
 {
 	@Override
-	public List<TableInfoVO> getSuggestedChildren(final PO po, final GridTab gridTab)
+	public List<CopyRecordSupportChildInfo> getSuggestedChildren(final PO po)
 	{
-		final List<TableInfoVO> list = super.getSuggestedChildren(po, gridTab);
-
-		final List<TableInfoVO> finalList = new ArrayList<TableInfoVO>();
-		for (final TableInfoVO childTableInfo : list)
-		{
-			// for the time being, PP_Product_BOMLine is the only accepted child.
-			if (I_PP_Product_BOMLine.Table_Name.equals(childTableInfo.tableName))
-			{
-				finalList.add(childTableInfo);
-			}
-		}
-		return finalList;
+		return super.getSuggestedChildren(po)
+				.stream()
+				.filter(childInfo -> I_PP_Product_BOMLine.Table_Name.equals(childInfo.getTableName()))
+				.collect(ImmutableList.toImmutableList());
 	}
 }

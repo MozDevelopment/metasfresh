@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.Set;
 
 import org.adempiere.ad.persistence.IModelInternalAccessor;
+import org.adempiere.ad.security.TableAccessLevel;
 import org.adempiere.exceptions.AdempiereException;
 
 /**
@@ -43,6 +44,13 @@ class POJOModelInternalAccessor implements IModelInternalAccessor
 	{
 		super();
 		this.pojoWrapper = pojoWrapper;
+	}
+	
+	@Override
+	public TableAccessLevel getAccessLevel()
+	{
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
@@ -133,6 +141,19 @@ class POJOModelInternalAccessor implements IModelInternalAccessor
 	public boolean isCalculated(final String columnName)
 	{
 		return pojoWrapper.isCalculated(columnName);
+	}
+	
+	@Override
+	public String getDefaultValueLogic(String columnName)
+	{
+		return pojoWrapper.getDefaultValueLogic(columnName);
+	}
+	
+	@Override
+	public int getDisplayType(String columnName)
+	{
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import org.adempiere.ad.persistence.IModelInternalAccessor;
 import org.adempiere.ad.persistence.ModelClassIntrospector;
 import org.adempiere.ad.persistence.TableModelLoader;
 import org.adempiere.ad.persistence.exceptions.ModelClassNotSupportedException;
+import org.adempiere.ad.security.TableAccessLevel;
 import org.adempiere.ad.service.IDeveloperModeBL;
 import org.adempiere.ad.wrapper.IInterfaceWrapper;
 import org.adempiere.ad.wrapper.POModelInternalAccessor;
@@ -247,7 +248,7 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 	 * @param model
 	 * @return underlying {@link PO} or null
 	 */
-	/*package*/ static <T extends PO> T getPO(final Object model)
+	/* package */ static <T extends PO> T getPO(final Object model)
 	{
 		final boolean checkOtherWrapper = true;
 		final T po = getPO(model, checkOtherWrapper);
@@ -275,11 +276,12 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 	 * @param checkOtherWrapper if the given <code>model</code> is handled by a {@link GridTabWrapper} and this param is <code>true</code>, then this method <b>loads a new PO from DB</b>, only using
 	 *            the given <code>model</code>'s table name and record ID. If this param is <code>false</code> and <code>model</code> is not handled by <code>POWrapper</code>, then this method returns
 	 *            <code>null</code>.
-	 * @return <ul>
-	 * <li>PO
-	 * <li>null if model is null
-	 * <li>null if {@link POWrapper} does not support it and <code>checkOtherWrapper</code> is <code>false</code>.
-	 * </ul>
+	 * @return
+	 *         <ul>
+	 *         <li>PO
+	 *         <li>null if model is null
+	 *         <li>null if {@link POWrapper} does not support it and <code>checkOtherWrapper</code> is <code>false</code>.
+	 *         </ul>
 	 */
 	@SuppressWarnings("unchecked")
 	private static <T extends PO> T getPO(final Object model, final boolean checkOtherWrapper)
@@ -468,6 +470,11 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 		return po.getClass();
 	}
 
+	private TableAccessLevel getAccessLevel()
+	{
+		return po.getPOInfo().getAccessLevel();
+	}
+
 	protected Set<String> getColumnNames()
 	{
 		return po.getPOInfo().getColumnNames();
@@ -492,6 +499,16 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 	{
 		return po.getPOInfo().isCalculated(columnName);
 	};
+
+	private String getDefaultValueLogic(final String columnName)
+	{
+		return po.getPOInfo().getDefaultLogic(columnName);
+	};
+
+	private int getDisplayType(String columnName)
+	{
+		return po.getPOInfo().getColumnDisplayType(columnName);
+	}
 
 	protected Object getValue(final String columnName, final int index, final Class<?> returnType)
 	{
@@ -1041,6 +1058,12 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 	private final IModelInternalAccessor modelInternalAccessor = new IModelInternalAccessor()
 	{
 		@Override
+		public TableAccessLevel getAccessLevel()
+		{
+			return POWrapper.this.getAccessLevel();
+		}
+
+		@Override
 		public void setValueFromPO(final String idColumnName, final Class<?> parameterType, final Object value)
 		{
 			POWrapper.this.setValueFromPO(idColumnName, parameterType, value);
@@ -1069,6 +1092,12 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 		{
 			return POWrapper.this.invokeEquals(methodArgs);
 		}
+
+		@Override
+		public int getDisplayType(String columnName)
+		{
+			return POWrapper.this.getDisplayType(columnName);
+		};
 
 		@Override
 		public Object getValue(final String columnName, final int idx, final Class<?> returnType)
@@ -1118,6 +1147,12 @@ public class POWrapper implements InvocationHandler, IInterfaceWrapper
 		{
 			return POWrapper.this.isCalculated(columnName);
 		}
+
+		@Override
+		public String getDefaultValueLogic(String columnName)
+		{
+			return POWrapper.this.getDefaultValueLogic(columnName);
+		};
 
 		@Override
 		public boolean hasColumnName(final String columnName)

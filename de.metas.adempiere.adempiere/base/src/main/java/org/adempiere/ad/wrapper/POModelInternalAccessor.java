@@ -10,23 +10,23 @@ package org.adempiere.ad.wrapper;
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 2 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
-
 
 import java.lang.reflect.Method;
 import java.util.Set;
 
 import org.adempiere.ad.persistence.IModelInternalAccessor;
+import org.adempiere.ad.security.TableAccessLevel;
 import org.adempiere.model.POWrapper;
 import org.adempiere.util.Check;
 import org.compiere.model.PO;
@@ -34,7 +34,7 @@ import org.compiere.model.POInfo;
 
 /**
  * Implementation of {@link IModelInternalAccessor} which directly wraps a given {@link PO}.
- * 
+ *
  * @author tsa
  *
  */
@@ -53,6 +53,12 @@ public class POModelInternalAccessor implements IModelInternalAccessor
 	private final POInfo getPOInfo()
 	{
 		return po.getPOInfo();
+	}
+
+	@Override
+	public TableAccessLevel getAccessLevel()
+	{
+		return getPOInfo().getAccessLevel();
 	}
 
 	@Override
@@ -111,7 +117,7 @@ public class POModelInternalAccessor implements IModelInternalAccessor
 	}
 
 	@Override
-	public boolean setValueNoCheck(String propertyName, Object value)
+	public boolean setValueNoCheck(final String propertyName, final Object value)
 	{
 		return po.set_ValueOfColumnReturningBoolean(propertyName, value);
 	}
@@ -149,6 +155,18 @@ public class POModelInternalAccessor implements IModelInternalAccessor
 	public boolean isCalculated(final String columnName)
 	{
 		return getPOInfo().isCalculated(columnName);
+	}
+
+	@Override
+	public String getDefaultValueLogic(final String columnName)
+	{
+		return getPOInfo().getDefaultLogic(columnName);
+	}
+
+	@Override
+	public int getDisplayType(final String columnName)
+	{
+		return getPOInfo().getColumnDisplayType(columnName);
 	}
 
 	@Override

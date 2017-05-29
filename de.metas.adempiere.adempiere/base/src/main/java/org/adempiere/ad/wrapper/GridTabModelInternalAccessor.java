@@ -10,23 +10,23 @@ package org.adempiere.ad.wrapper;
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 2 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
-
 
 import java.lang.reflect.Method;
 import java.util.Set;
 
 import org.adempiere.ad.persistence.IModelInternalAccessor;
+import org.adempiere.ad.security.TableAccessLevel;
 import org.adempiere.model.GridTabWrapper;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
@@ -35,7 +35,7 @@ import com.google.common.collect.ImmutableSet;
 
 /**
  * Adapts {@link GridTabWrapper} to {@link IModelInternalAccessor}.
- * 
+ *
  * @author tsa
  *
  */
@@ -58,6 +58,13 @@ public class GridTabModelInternalAccessor implements IModelInternalAccessor
 	private final GridField getGridField(final String columnName)
 	{
 		return getGridTab().getField(columnName);
+	}
+
+	@Override
+	public TableAccessLevel getAccessLevel()
+	{
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
@@ -96,6 +103,23 @@ public class GridTabModelInternalAccessor implements IModelInternalAccessor
 	{
 		final GridField field = getGridField(columnName);
 		return field != null && field.getVO().isCalculated();
+	}
+
+	@Override
+	public String getDefaultValueLogic(final String columnName)
+	{
+		final GridField field = getGridField(columnName);
+		if (field == null)
+		{
+			return null;
+		}
+		return field.getDefaultValue();
+	}
+
+	@Override
+	public int getDisplayType(final String columnName)
+	{
+		return getGridField(columnName).getDisplayType();
 	}
 
 	@Override

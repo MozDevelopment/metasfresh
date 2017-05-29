@@ -1,5 +1,7 @@
 package org.adempiere.ad.model.util;
 
+import org.adempiere.ad.persistence.IModelInternalAccessor;
+
 /*
  * #%L
  * de.metas.adempiere.adempiere.base
@@ -40,6 +42,11 @@ public interface IModelCopyHelper
 	 * NOTE: model will not be saved.
 	 */
 	void copy();
+	
+	default void copy(final Object toModel, final Object fromModel)
+	{
+		setFrom(fromModel).setTo(toModel).copy();
+	}
 
 	/**
 	 * Execute copy to a new model (not saved)
@@ -47,6 +54,11 @@ public interface IModelCopyHelper
 	 * @param modelClass
 	 */
 	<T> T copyToNew(Class<T> modelClass);
+	
+	default <T> T copyToNew(final Object fromModel, final Class<T> modelClass)
+	{
+		return setFrom(fromModel).copyToNew(modelClass);
+	}
 
 	/**
 	 * Sets from which model are we copying
@@ -70,5 +82,13 @@ public interface IModelCopyHelper
 	IModelCopyHelper setSkipCalculatedColumns(boolean skipCalculatedColumns);
 
 	IModelCopyHelper addTargetColumnNameToSkip(String columnName);
+	
+	IModelCopyHelper setCalculatedValueToCopyExtractor(ValueToCopyExtractor valueToCopyExtractor);
+
+	@FunctionalInterface
+	public static interface ValueToCopyExtractor
+	{
+		Object getValueToCopy(final String columnName, final IModelInternalAccessor to, final IModelInternalAccessor from);
+	}
 
 }

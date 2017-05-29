@@ -875,6 +875,17 @@ public final class POInfo implements Serializable
 			return null;
 		return m_columns[index].DefaultLogic;
 	}   // getDefaultLogic
+	
+	public String getDefaultLogic(String columnName)
+	{
+		final int columnIndex = getColumnIndex(columnName);
+		if (columnIndex < 0)
+		{
+			throw new IllegalArgumentException("Column name " + columnName + " not found in " + this);
+		}
+		return getDefaultLogic(columnIndex);
+	}
+
 
 	/**
 	 * Is Column Mandatory

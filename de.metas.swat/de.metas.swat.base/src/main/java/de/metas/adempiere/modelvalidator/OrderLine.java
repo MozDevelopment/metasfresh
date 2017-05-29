@@ -3,6 +3,7 @@ package de.metas.adempiere.modelvalidator;
 import org.adempiere.ad.modelvalidator.ModelChangeType;
 import org.adempiere.model.InterfaceWrapperHelper;
 import org.adempiere.model.MFreightCost;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
 import org.adempiere.util.Services;
 import org.compiere.model.MClient;
 import org.compiere.model.MOrder;
@@ -145,7 +146,7 @@ public class OrderLine implements ModelValidator
 			final boolean newOrDelete = type == TYPE_AFTER_NEW || type == TYPE_AFTER_DELETE;
 			final boolean linesAmtChanged = po.is_ValueChanged(I_C_OrderLine.COLUMNNAME_LineNetAmt);
 			final boolean notFixPrice = !X_C_Order.FREIGHTCOSTRULE_FixPrice.equals(orderPO.getFreightCostRule());
-			final boolean isCopy = po.getDynAttribute(PO.DYNATTR_CopyRecordSupport_OldValue) == null ? false : true; // metas: cg: task US215
+			final boolean isCopy = CopyRecordFactory.getExistingOrNull(po) == null ? false : true; // metas: cg: task US215
 			if (!isCopy && (linesAmtChanged || notFixPrice || newOrDelete))
 			{
 				if (MFreightCost.retriveFor(po.getCtx(), ol.getM_Product_ID(), po.get_TrxName()).isEmpty())

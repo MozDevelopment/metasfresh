@@ -1,4 +1,4 @@
-package org.adempiere.model;
+package org.adempiere.model.copyRecord;
 
 /*
  * #%L
@@ -13,20 +13,19 @@ package org.adempiere.model;
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
 
-
 import java.util.List;
+import java.util.Optional;
 
 import org.compiere.model.GridField;
-import org.compiere.model.GridTab;
 import org.compiere.model.PO;
 
 /**
@@ -37,45 +36,33 @@ public interface CopyRecordSupport
 {
 	/**
 	 * Copy the persistence object with all his children
-	 *
-	 * @param po
-	 * @param parentKeyColumn
-	 * @param parent_id
-	 * @param grid
-	 *            tab
+	 * 
+	 * @return newly created PO
 	 */
-	void copyRecord(PO po, String trxName);
+	Optional<PO> copyRoot(PO po, String trxName);
+
+	void copyChildren(PO newParentPO, String trxName);
+
+	Optional<PO> copyChild(PO oldChildPO, int newParentId, String trxName);
 
 	/**
 	 * Gets the list with suggested table names for a PO
 	 *
 	 * @param persistence
 	 *            object
-	 * @param grid
-	 *            tab
 	 * @return a list of tables with info
 	 */
-	List<TableInfoVO> getSuggestedChildren(PO po, GridTab gt);
+	List<CopyRecordSupportChildInfo> getSuggestedChildren(PO po);
 
 	void setParentKeyColumn(String parentKeyColumn);
 
 	String getParentKeyColumn();
 
-	void setParentID(int parent_id);
-
-	int getParentID();
-
 	PO getParentPO();
 
 	void setParentPO(PO parentPO);
 
-	void setGridTab(GridTab gt);
-
-	GridTab getGridTab();
-
-	void setFromPO_ID(int oldPO_id);
-
-	int getFromPO_ID();
+	void setChildrenInfo(List<CopyRecordSupportChildInfo> childrenInfo);
 
 	/**
 	 * Updates given <code>po</code> and sets the right values for columns that needs special handling.
@@ -84,11 +71,7 @@ public interface CopyRecordSupport
 	 *
 	 * @param to
 	 */
-	void setSpecialColumnsName(PO to);
-
-	boolean isBase();
-
-	void setBase(boolean base);
+	void updateSpecialColumnNames(PO to);
 
 	/**
 	 * Gets the value to be copied for a column which is calculated and whom value is not desirable to be copied.

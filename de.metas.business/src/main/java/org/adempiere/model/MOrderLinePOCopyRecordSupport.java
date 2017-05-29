@@ -26,6 +26,7 @@ package org.adempiere.model;
 import java.util.Properties;
 
 import org.adempiere.ad.trx.api.ITrx;
+import org.adempiere.model.copyRecord.GeneralCopyRecordSupport;
 import org.adempiere.util.Services;
 import org.adempiere.util.collections.CompositePredicate;
 import org.adempiere.util.collections.Predicate;
@@ -46,29 +47,6 @@ public class MOrderLinePOCopyRecordSupport extends GeneralCopyRecordSupport
 	 */
 	private static final CompositePredicate<I_C_OrderLine> skipPredicates = new CompositePredicate<>();
 
-	@Override
-	public void copyRecord(final PO po, final String trxName)
-	{
-		final I_C_OrderLine orderLine = InterfaceWrapperHelper.create(po, I_C_OrderLine.class);
-
-		//
-		// Exclude freight cost products
-		final Properties ctx = InterfaceWrapperHelper.getCtx(po);
-		if (Services.get(IFreightCostBL.class).isFreightCostProduct(ctx, orderLine.getM_Product_ID(), ITrx.TRXNAME_None))
-		{
-			return;
-		}
-
-		// Check if we shall skip this record
-		if (!isCopyRecord(orderLine))
-		{
-			return;
-		}
-
-		// delegate to super
-		super.copyRecord(po, trxName);
-	}
-
 	/**
 	 * Add a skip filter.
 	 *
@@ -86,8 +64,19 @@ public class MOrderLinePOCopyRecordSupport extends GeneralCopyRecordSupport
 	 * @param orderLine
 	 * @return true if the record shall be copied
 	 */
-	private final boolean isCopyRecord(final I_C_OrderLine orderLine)
+	@Override
+	protected final boolean isCopyRecord(final PO po)
 	{
+		final I_C_OrderLine orderLine = InterfaceWrapperHelper.create(po, I_C_OrderLine.class);
+
+		//
+		// Exclude freight cost products
+		final Properties ctx = InterfaceWrapperHelper.getCtx(po);
+		if (Services.get(IFreightCostBL.class).isFreightCostProduct(ctx, orderLine.getM_Product_ID(), ITrx.TRXNAME_None))
+		{
+			return false; // don't copy
+		}
+		
 		// If there was no predicate registered
 		// => accept this record
 		if (skipPredicates.isEmpty())

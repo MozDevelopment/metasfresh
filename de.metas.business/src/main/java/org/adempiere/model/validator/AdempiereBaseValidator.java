@@ -29,7 +29,7 @@ import org.adempiere.ad.dao.cache.ITableCacheConfig.TrxLevel;
 import org.adempiere.ad.modelvalidator.AbstractModuleInterceptor;
 import org.adempiere.ad.modelvalidator.IModelValidationEngine;
 import org.adempiere.mm.attributes.copyRecordSupport.CloneASIListener;
-import org.adempiere.model.CopyRecordFactory;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
 import org.adempiere.pricing.model.I_C_PricingRule;
 import org.adempiere.util.Services;
 import org.compiere.model.I_AD_Client;

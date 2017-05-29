@@ -1046,6 +1046,12 @@ public class POJOWrapper implements InvocationHandler, IInterfaceWrapper
 		return false;
 	}
 
+	public String getDefaultValueLogic(String columnName)
+	{
+		// TODO: implement support for getDefaultValueLogic
+		return null;
+	}
+
 	public boolean isVirtualColumn(final String columnName)
 	{
 		// TODO implement support for virtual columns

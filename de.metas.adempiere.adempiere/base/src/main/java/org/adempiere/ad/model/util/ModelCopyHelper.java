@@ -13,12 +13,12 @@ import java.util.Properties;
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 2 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
  * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
@@ -34,6 +34,8 @@ import org.adempiere.model.InterfaceWrapperHelper;
 import org.adempiere.util.Check;
 
 import com.google.common.collect.ImmutableSet;
+
+import lombok.NonNull;
 
 public class ModelCopyHelper implements IModelCopyHelper
 {
@@ -56,6 +58,8 @@ public class ModelCopyHelper implements IModelCopyHelper
 
 	private final Set<String> targetColumnNamesToSkip = new HashSet<>();
 
+	private ValueToCopyExtractor calculatedValueToCopyExtractor = null;
+
 	@Override
 	public void copy()
 	{
@@ -64,44 +68,19 @@ public class ModelCopyHelper implements IModelCopyHelper
 
 		for (final String columnName : to.getColumnNames())
 		{
-			// Skip this column if it does not exist in our "from" model
-			if (!from.hasColumnName(columnName))
-			{
-				continue;
-			}
-
-			// Skip columns which were advised to be skipped
-			if (targetColumnNamesToSkip.contains(columnName))
-			{
-				continue;
-			}
-
-			// Skip virtual columns
-			if (to.isVirtualColumn(columnName))
-			{
-				continue;
-			}
-
-			// Skip copying key columns
-			if (to.isKeyColumnName(columnName))
-			{
-				continue;
-			}
-
-			if (DEFAULT_ColumnNamesToSkipAlways.contains(columnName))
-			{
-				continue;
-			}
-
-			// Skip calculated columns if asked
-			if (isSkipCalculatedColumns() && to.isCalculated(columnName))
+			//
+			// Skip the column if we shall not copy it
+			if (!isCopyColumn(columnName, to, from))
 			{
 				continue;
 			}
 
 			//
-			// Copy the value
-			final Object value = from.getValue(columnName, Object.class);
+			// Extract the value to copy
+			final Object value = getValueToCopy(columnName, to, from);
+
+			//
+			// Set the value to our "to" target
 			final boolean valueSet = to.setValue(columnName, value);
 			if (!valueSet)
 			{
@@ -128,8 +107,8 @@ public class ModelCopyHelper implements IModelCopyHelper
 	@Override
 	public IModelCopyHelper setFrom(final Object fromModel)
 	{
-		this._fromModel = fromModel;
-		this._fromModelAccessor = null;
+		_fromModel = fromModel;
+		_fromModelAccessor = null;
 		return this;
 	}
 
@@ -151,8 +130,8 @@ public class ModelCopyHelper implements IModelCopyHelper
 	@Override
 	public IModelCopyHelper setTo(final Object toModel)
 	{
-		this._toModel = toModel;
-		this._toModelAccessor = null;
+		_toModel = toModel;
+		_toModelAccessor = null;
 		return this;
 	}
 
@@ -168,13 +147,13 @@ public class ModelCopyHelper implements IModelCopyHelper
 
 	public final boolean isSkipCalculatedColumns()
 	{
-		return _skipCalculatedColumns;
+		return _skipCalculatedColumns && calculatedValueToCopyExtractor == null;
 	}
 
 	@Override
-	public IModelCopyHelper setSkipCalculatedColumns(boolean skipCalculatedColumns)
+	public IModelCopyHelper setSkipCalculatedColumns(final boolean skipCalculatedColumns)
 	{
-		this._skipCalculatedColumns = skipCalculatedColumns;
+		_skipCalculatedColumns = skipCalculatedColumns;
 		return this;
 	}
 
@@ -184,4 +163,62 @@ public class ModelCopyHelper implements IModelCopyHelper
 		targetColumnNamesToSkip.add(columnName);
 		return this;
 	}
+
+	@Override
+	public IModelCopyHelper setCalculatedValueToCopyExtractor(@NonNull final ValueToCopyExtractor calculatedValueToCopyExtractor)
+	{
+		this.calculatedValueToCopyExtractor = calculatedValueToCopyExtractor;
+		return this;
+	}
+
+	private final boolean isCopyColumn(final String columnName, final IModelInternalAccessor to, final IModelInternalAccessor from)
+	{
+		// Skip this column if it does not exist in our "from" model
+		if (!from.hasColumnName(columnName))
+		{
+			return false;
+		}
+
+		// Skip columns which were advised to be skipped
+		if (targetColumnNamesToSkip.contains(columnName))
+		{
+			return false;
+		}
+
+		// Skip virtual columns
+		if (to.isVirtualColumn(columnName))
+		{
+			return false;
+		}
+
+		// Skip copying key columns
+		if (to.isKeyColumnName(columnName))
+		{
+			return false;
+		}
+
+		if (DEFAULT_ColumnNamesToSkipAlways.contains(columnName))
+		{
+			return false;
+		}
+
+		// Skip calculated columns if asked
+		if (isSkipCalculatedColumns() && to.isCalculated(columnName))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	private final Object getValueToCopy(final String columnName, final IModelInternalAccessor to, final IModelInternalAccessor from)
+	{
+		if (to.isCalculated(columnName) && calculatedValueToCopyExtractor != null)
+		{
+			return calculatedValueToCopyExtractor.getValueToCopy(columnName, to, from);
+		}
+		
+		return from.getValue(columnName, Object.class);
+	}
+
 }

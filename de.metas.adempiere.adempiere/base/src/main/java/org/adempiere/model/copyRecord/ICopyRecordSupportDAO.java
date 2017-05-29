@@ -1,16 +1,14 @@
-package de.metas.rfq.model.interceptor;
+package org.adempiere.model.copyRecord;
 
-import org.adempiere.ad.modelvalidator.annotations.Init;
-import org.adempiere.ad.modelvalidator.annotations.Interceptor;
-import org.adempiere.model.copyRecord.CopyRecordFactory;
+import java.util.List;
 
-import de.metas.rfq.model.I_C_RfQ_Topic;
+import org.adempiere.util.ISingletonService;
 
 /*
  * #%L
- * de.metas.rfq
+ * de.metas.adempiere.adempiere.base
  * %%
- * Copyright (C) 2016 metas GmbH
+ * Copyright (C) 2017 metas GmbH
  * %%
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,13 +26,9 @@ import de.metas.rfq.model.I_C_RfQ_Topic;
  * #L%
  */
 
-@Interceptor(I_C_RfQ_Topic.class)
-public class C_RfQ_Topic
+public interface ICopyRecordSupportDAO extends ISingletonService
 {
-	@Init
-	void configureCopyWithDetailsSupport()
-	{
-		CopyRecordFactory.enableForTableName(I_C_RfQ_Topic.Table_Name);
-	}
+
+	List<CopyRecordSupportChildInfo> retrieveCopyRecordSupportChildInfos(String parentTableName, String parentKeyColumnName);
 
 }

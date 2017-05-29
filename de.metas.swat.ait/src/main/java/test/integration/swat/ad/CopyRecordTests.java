@@ -28,10 +28,11 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.adempiere.model.CopyRecordFactory;
-import org.adempiere.model.CopyRecordSupport;
 import org.adempiere.model.InterfaceWrapperHelper;
-import org.adempiere.model.TableInfoVO;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
+import org.adempiere.model.copyRecord.CopyRecordSupport;
+import org.adempiere.model.copyRecord.CopyRecordSupportChildInfo;
+import org.adempiere.util.Check;
 import org.adempiere.util.Services;
 import org.adempiere.util.time.SystemTime;
 import org.compiere.model.GridTab;
@@ -46,7 +47,6 @@ import org.compiere.model.X_C_DocType;
 import org.compiere.process.DocAction;
 import org.compiere.util.Env;
 import org.compiere.util.TimeUtil;
-import org.compiere.util.Util;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -107,12 +107,12 @@ public class CopyRecordTests extends AIntegrationTestDriver
 	{
 		final PO po = InterfaceWrapperHelper.getPO(model);
 
-		final CopyRecordSupport childCRS = CopyRecordFactory.getCopyRecordSupport(gridTab.getTableName());
-		final List<TableInfoVO> suggestedChildren = new ArrayList<TableInfoVO>();
-		for (Object ti : childCRS.getSuggestedChildren(po, gridTab))
-		{
-			suggestedChildren.add((TableInfoVO)ti);
-		}
+		final CopyRecordSupport childCRS = CopyRecordFactory.builder()
+				.tableName(gridTab.getTableName())
+				.childrenInfo(gridTab.getSuggestedCopyWithDetailsList())
+				.build().create();
+		final List<CopyRecordSupportChildInfo> suggestedChildren = new ArrayList<>(childCRS.getSuggestedChildren(po));
+		
 		// TODO: check suggested children
 		gridTab.setSuggestedCopyWithDetailsList(suggestedChildren);
 
@@ -132,7 +132,7 @@ public class CopyRecordTests extends AIntegrationTestDriver
 	private <T> T saveGridTab(GridTab gridTab, Class<T> interfaceClass)
 	{
 		final String keyColumn = gridTab.getKeyColumnName();
-		Assert.assertFalse("No key column found for " + gridTab, Util.isEmpty(keyColumn, true));
+		Assert.assertFalse("No key column found for " + gridTab, Check.isEmpty(keyColumn, true));
 
 		boolean ok = gridTab.dataSave(true);
 		Assert.assertTrue("dataSave failed on " + gridTab, ok);

@@ -28,6 +28,7 @@ package org.adempiere.model;
 
 import org.adempiere.ad.modelvalidator.AbstractModelInterceptor;
 import org.adempiere.ad.modelvalidator.IModelValidationEngine;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
 import org.compiere.model.I_AD_Client;
 import org.compiere.model.I_C_Invoice;
 import org.compiere.model.I_C_Order;

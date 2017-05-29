@@ -13,11 +13,11 @@ package org.adempiere.process;
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
@@ -25,9 +25,10 @@ package org.adempiere.process;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 
-import org.adempiere.model.CopyRecordFactory;
-import org.adempiere.model.CopyRecordSupport;
+import org.adempiere.ad.trx.api.ITrx;
 import org.adempiere.model.InterfaceWrapperHelper;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
+import org.adempiere.model.copyRecord.CopyRecordSupport;
 import org.adempiere.util.Services;
 import org.compiere.model.I_C_Order;
 import org.compiere.model.MDocType;
@@ -36,12 +37,13 @@ import org.compiere.model.PO;
 import org.compiere.process.DocAction;
 import org.compiere.util.Env;
 import org.slf4j.Logger;
-import de.metas.logging.LogManager;
-import de.metas.process.ProcessInfoParameter;
-import de.metas.process.JavaProcess;
-import de.metas.document.engine.IDocActionBL;
 
-public final class OrderCreateNewFromProposal extends JavaProcess 
+import de.metas.document.engine.IDocActionBL;
+import de.metas.logging.LogManager;
+import de.metas.process.JavaProcess;
+import de.metas.process.ProcessInfoParameter;
+
+public final class OrderCreateNewFromProposal extends JavaProcess
 {
 	private static final Logger log = LogManager.getLogger(OrderCreateNewFromProposal.class);
 
@@ -55,65 +57,67 @@ public final class OrderCreateNewFromProposal extends JavaProcess
 
 	private boolean newOrderClompleteIt = false;
 
-
-
 	@Override
 	protected String doIt() throws Exception
 	{
-
-
+		//
+		// Create new order by copying the source order.
 		final I_C_Order newOrder = InterfaceWrapperHelper.create(getCtx(), I_C_Order.class, get_TrxName());
-		final PO to = InterfaceWrapperHelper.getPO(newOrder);
-		PO.copyValues(sourceOrder, to, true);
-		
-		final MDocType docType = MDocType.get(Env.getCtx(), newOrderDocType);
-		newOrder.setC_DocTypeTarget(docType);
-		newOrder.setC_DocType(docType);
-		
-		if (newOrderDateOrdered != null)
+		final PO newOrderPO = InterfaceWrapperHelper.getPO(newOrder);
 		{
-			newOrder.setDateOrdered(newOrderDateOrdered);
-		}
-		if (poReference != null)
-		{
-			newOrder.setPOReference(poReference);
-		}
-		
-		newOrder.setRef_Proposal(sourceOrder);
-		
-		InterfaceWrapperHelper.save(newOrder);
-		
-		final CopyRecordSupport childCRS = CopyRecordFactory.getCopyRecordSupport(I_C_Order.Table_Name);
-		childCRS.setGridTab(null);
-		childCRS.setParentPO(to);
-		childCRS.setParentID(to.get_ID());
-		childCRS.setBase(true);
-		childCRS.copyRecord(sourceOrder, get_TrxName());
+			PO.copyValues(sourceOrder, newOrderPO, true);
 
-		
-		
-		InterfaceWrapperHelper.save(newOrder);
+			final MDocType docType = MDocType.get(Env.getCtx(), newOrderDocType);
+			newOrder.setC_DocTypeTarget(docType);
+			newOrder.setC_DocType(docType);
 
-		String docAction;
-		if (newOrderClompleteIt)
-		{
-			docAction = DocAction.ACTION_Complete;
-			Services.get(IDocActionBL.class).processEx(newOrder, DocAction.ACTION_Complete, DocAction.STATUS_Completed);
-		}
-		else
-		{
-			docAction = DocAction.ACTION_Prepare;
+			if (newOrderDateOrdered != null)
+			{
+				newOrder.setDateOrdered(newOrderDateOrdered);
+			}
+			if (poReference != null)
+			{
+				newOrder.setPOReference(poReference);
+			}
+
+			newOrder.setRef_Proposal(sourceOrder);
+
+			InterfaceWrapperHelper.save(newOrder);
 		}
 
-		newOrder.setDocAction(docAction);
+		//
+		// Copy source order childrens to our new order
+		{
+			final CopyRecordSupport childCRS = CopyRecordFactory.builder()
+					.tableName(I_C_Order.Table_Name)
+					.build().create();
+			CopyRecordFactory.setOldPOId(newOrderPO, sourceOrder.getC_Order_ID());
+			childCRS.copyChildren(newOrderPO, ITrx.TRXNAME_ThreadInherited);
+		}
 
-		
-		InterfaceWrapperHelper.save(newOrder);
-		
-		
+		//
+		// Complete the new order if required
+		{
+			String docAction;
+			if (newOrderClompleteIt)
+			{
+				docAction = DocAction.ACTION_Complete;
+				Services.get(IDocActionBL.class).processEx(newOrder, DocAction.ACTION_Complete, DocAction.STATUS_Completed);
+			}
+			else
+			{
+				docAction = DocAction.ACTION_Prepare;
+			}
+			newOrder.setDocAction(docAction);
+			InterfaceWrapperHelper.save(newOrder);
+		}
+
+		//
+		// Link back the new order to source order
 		sourceOrder.setRef_Order_ID(newOrder.getC_Order_ID());
 		InterfaceWrapperHelper.save(sourceOrder, get_TrxName());
 
+		//
 		return newOrder.getDocumentNo();
 	}
 
@@ -128,14 +132,11 @@ public final class OrderCreateNewFromProposal extends JavaProcess
 		final MDocType sourceOrderDocType = MDocType.get(Env.getCtx(),
 				sourceOrder.getC_DocTypeTarget_ID());
 
-		if (!(MDocType.DOCBASETYPE_SalesOrder.equals(sourceOrderDocType
-				.getDocBaseType()) //
-		&& MDocType.DOCSUBTYPE_Proposal.equals(sourceOrderDocType
-				.getDocSubType())//
+		if (!(MDocType.DOCBASETYPE_SalesOrder.equals(sourceOrderDocType.getDocBaseType()) //
+				&& MDocType.DOCSUBTYPE_Proposal.equals(sourceOrderDocType.getDocSubType())//
 		))
 		{
-			throw new IllegalStateException(
-					"This process may be started for proposals only");
+			throw new IllegalStateException("This process may be started for proposals only");
 		}
 
 		final ProcessInfoParameter[] para = getParametersAsArray();

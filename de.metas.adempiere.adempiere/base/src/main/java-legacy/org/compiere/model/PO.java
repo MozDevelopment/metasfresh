@@ -69,8 +69,9 @@ import org.adempiere.ad.validationRule.IValidationRuleFactory;
 import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.exceptions.DBException;
 import org.adempiere.exceptions.FillMandatoryException;
-import org.adempiere.model.CopyRecordSupport;
 import org.adempiere.model.InterfaceWrapperHelper;
+import org.adempiere.model.copyRecord.CopyRecordFactory;
+import org.adempiere.model.copyRecord.CopyRecordSupport;
 import org.adempiere.service.ISysConfigBL;
 import org.adempiere.util.Check;
 import org.adempiere.util.Services;
@@ -925,7 +926,7 @@ public abstract class PO
 	 * @param value value
 	 * @return true if value set
 	 */
-	protected final boolean set_Value(String ColumnName, Object value)
+	public final boolean set_Value(String ColumnName, Object value)
 	{
 		if (value instanceof String && ColumnName.equals("WhereClause")
 				&& value.toString().toUpperCase().indexOf("=NULL") != -1)
@@ -1553,10 +1554,10 @@ public abstract class PO
 						final String toColumnName = to.p_info.getColumnName(toColumnIndex);
 						if (toColumnName.equals(fromColumnName))
 						{
-							if (to.getDynAttribute(PO.DYNATTR_CopyRecordSupport) != null)
+							final CopyRecordSupport copier = CopyRecordFactory.getExistingOrNull(to);
+							if (copier != null)
 							{
-								CopyRecordSupport cps = (CopyRecordSupport)to.getDynAttribute(PO.DYNATTR_CopyRecordSupport);
-								to.m_newValues[toColumnIndex] = cps.getValueToCopy(to, from, fromColumnName);
+								to.m_newValues[toColumnIndex] = copier.getValueToCopy(to, from, fromColumnName);
 							}
 							break;
 						}
@@ -1605,10 +1606,10 @@ public abstract class PO
 				// metas: begin: us215
 				else if (honorIsCalculated && from.p_info.isCalculated(i))
 				{
-					if (to.getDynAttribute(PO.DYNATTR_CopyRecordSupport) != null)
+					final CopyRecordSupport copier = CopyRecordFactory.getExistingOrNull(to);
+					if (copier != null)
 					{
-						final CopyRecordSupport cps = (CopyRecordSupport)to.getDynAttribute(PO.DYNATTR_CopyRecordSupport);
-						to.m_newValues[i] = cps.getValueToCopy(to, from, colName);
+						to.m_newValues[i] = copier.getValueToCopy(to, from, colName);
 					}
 				}
 				// metas: end: us215
@@ -2914,17 +2915,17 @@ public abstract class PO
 						MTree.updateTreeNode(this);
 				}
 
-				// start: c.ghita@metas.ro
-				CopyRecordSupport copyRecordSupport = (CopyRecordSupport)getDynAttribute(DYNATTR_CopyRecordSupport);
-				if (copyRecordSupport != null && success)
+				//
+				// Copy child records if asked
+				if(success)
 				{
-					copyRecordSupport.setParentID(get_ID());
-					copyRecordSupport.setParentPO(this);
-					copyRecordSupport.copyRecord(this, get_TrxName());
-					copyRecordSupport = null;
-					setDynAttribute(DYNATTR_CopyRecordSupport, null);
+					final CopyRecordSupport copyRecordSupport = CopyRecordFactory.getExistingOrNull(this);
+					if (copyRecordSupport != null)
+					{
+						copyRecordSupport.copyChildren(this, get_TrxName());
+						CopyRecordFactory.uninstall(this);
+					}
 				}
-				// end: c.ghita@metas.ro
 			}
 			catch (final Exception e)
 			{
@@ -4954,15 +4955,6 @@ public abstract class PO
 	}
 
 	private int m_currentChangeType = -1;
-
-	/**
-	 * DynAttr which holds the <code>CopyRecordSupport</code> class which handles this PO
-	 */
-	public static final String DYNATTR_CopyRecordSupport = "CopyRecordSupport";
-	/**
-	 * DynAttr which holds the source PO from which this PO was copied
-	 */
-	public static final String DYNATTR_CopyRecordSupport_OldValue = "CopyRecordSupportOldValue";
 
 	@Override
 	public final boolean has_Variable(String variableName)
